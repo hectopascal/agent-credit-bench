@@ -3,22 +3,16 @@
 Purpose: test whether an estimator leaks delayed terminal reward onto actions
 that have no effect on the outcome.
 
-Contract (pinned by tests/test_delayed_effect.py):
+Structure: at t=0 the agent picks "GOOD" or "BAD", which sets a latent success
+probability and pays reward 0. At t = 1 .. horizon-1 it picks among
+behaviorally identical distractor actions (identical transitions and rewards,
+hence exactly zero advantage). All intermediate rewards are 0; the final
+transition terminates and pays 1.0 with the latent success probability, else
+0.0. With gamma=1 this makes Q_0(s0, "GOOD") == good_success_probability
+exactly, under any policy.
 
-  - at t=0 the available actions are exactly "GOOD" and "BAD";
-  - the t=0 choice sets the latent success probability
-    (good_success_probability or bad_success_probability) and pays reward 0;
-  - at t = 1 .. horizon-1 the agent picks among ``num_distractor_actions``
-    behaviorally identical actions — identical transitions and rewards — so
-    every distractor has exactly zero advantage;
-  - all intermediate rewards are 0; the final transition (t == horizon - 1)
-    terminates and pays reward 1.0 with the latent success probability,
-    else 0.0. Consequence with gamma=1: Q_0(s0, "GOOD") equals
-    good_success_probability exactly, under any policy.
-
-The state representation is yours to choose — any hashable values pass the
-tests. One natural choice: "start" at t=0, then "good" / "bad" as the latent
-state for t >= 1. Requires horizon >= 2.
+State representation: "start" at t=0, then the latent state "good" / "bad"
+for every t >= 1. Requires horizon >= 2.
 """
 
 from dataclasses import dataclass
@@ -33,21 +27,37 @@ class DelayedEffectEnv:
     bad_success_probability: float = 0.2
     num_distractor_actions: int = 2
 
+    def __post_init__(self) -> None:
+        if self.horizon < 2:
+            raise ValueError("DelayedEffectEnv requires horizon >= 2")
+
     @property
     def initial_state(self) -> State:
-        # TODO(yan): return the t=0 state.
-        raise NotImplementedError("M2: DelayedEffectEnv not implemented yet")
+        return "start"
 
     def states_at(self, timestep: int) -> list[State]:
-        # TODO(yan): every state reachable at this timestep.
-        raise NotImplementedError("M2: DelayedEffectEnv not implemented yet")
+        return ["start"] if timestep == 0 else ["good", "bad"]
 
     def actions(self, timestep: int, state: State) -> list[Action]:
-        # TODO(yan): ["GOOD", "BAD"] at t=0; the distractors afterwards.
-        raise NotImplementedError("M2: DelayedEffectEnv not implemented yet")
+        if timestep == 0:
+            return ["GOOD", "BAD"]
+        return [f"DISTRACT_{i}" for i in range(self.num_distractor_actions)]
 
     def transitions(
         self, timestep: int, state: State, action: Action
     ) -> list[Transition]:
-        # TODO(yan): see the module docstring for the required structure.
-        raise NotImplementedError("M2: DelayedEffectEnv not implemented yet")
+        if timestep == 0:
+            latent = "good" if action == "GOOD" else "bad"
+            return [Transition(latent, 0.0, 1.0, False)]
+        if timestep < self.horizon - 1:
+            # Distractors are identical: stay in the latent state, reward 0.
+            return [Transition(state, 0.0, 1.0, False)]
+        success = (
+            self.good_success_probability
+            if state == "good"
+            else self.bad_success_probability
+        )
+        return [
+            Transition("success", 1.0, success, True),
+            Transition("failure", 0.0, 1.0 - success, True),
+        ]
