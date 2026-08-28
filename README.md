@@ -93,6 +93,34 @@ print(result.gradient_direction_bias, result.seed_metrics[0].leakage_ratio)
   (e.g. the actual TRL/verl group-advantage computation) so external library
   code can be scored without adding dependencies here.
 
+## Scoring verl's actual implementations
+
+With the optional extra, the suite runs directly against
+[verl](https://github.com/volcengine/verl)'s own advantage functions —
+the real `core_algos` code, not the "-style" reimplementations above:
+
+```bash
+pip install "agent-credit-bench[verl]"   # torch CPU is sufficient
+python experiments/verl_conformance.py
+```
+
+| estimator (verl 0.9.0)   | credit(BAD) | credit(RECOVER) | praises both |
+| ------------------------ | ----------- | --------------- | ------------ |
+| verl_grpo                | +0.59       | +0.59           | 100%         |
+| verl_rloo                | +0.26       | +0.26           | 100%         |
+| verl_reinforce_plus_plus | +0.72       | +0.72           | 100%         |
+| verl_gae_exact_lam1      | +0.56       | +1.10           | 100%         |
+| verl_gae_exact_lam0      | −0.69       | +1.42           | 0%           |
+
+Two headlines: every outcome-based estimator in verl praises the repaired
+mistake, and GAE with a *perfect* critic still does at verl's default
+λ = 1 — at λ = 1 the critic only sets the baseline; only λ < 1 bootstraps
+on it and separates turns. Details, packing semantics, and three more
+findings (e.g. verl's RLOO is bit-exactly our `BatchCenteredBroadcast`) in
+[docs/verl_integration.md](docs/verl_integration.md). The integration stays
+out of the core: zero runtime dependencies without the extra, and the verl
+tests skip when verl is absent (CI runs them in a dedicated job).
+
 ## Metrics: two families
 
 Exact advantage plus any state-dependent shift `b(t, s)` yields the same
