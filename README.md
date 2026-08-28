@@ -29,9 +29,15 @@ On successful `BAD -> RECOVER` trajectories in the recovery environment:
 | oracle_advantage         | −0.25       | +0.50           | 0%           |
 | outcome_broadcast        | +1.00       | +1.00           | 100%         |
 | batch_centered_broadcast | +0.26       | +0.26           | 100%         |
+| grpo_style_normalized    | +0.59       | +0.59           | 100%         |
+| gigpo_style              | +1.17       | +1.60           | 100%         |
 
 Trajectory-level estimators reward the mistake because the trajectory
-eventually succeeded. The exact oracle separates the signs.
+eventually succeeded. Even GiGPO-style anchor-state grouping praises BAD: a
+BAD-then-recovered trajectory has the same return-to-go from the start state
+as a GOOD one, so outcome-grouped credit cannot separate them (it does rank
+RECOVER above BAD, unlike the flat broadcasts). The exact oracle separates
+the signs.
 
 ## Installation
 
@@ -77,6 +83,15 @@ print(result.gradient_direction_bias, result.seed_metrics[0].leakage_ratio)
   (a minimal group-relative baseline; not a full GRPO implementation).
 - **TurnLOO** — leave-one-out baseline over trajectories still active at
   each timestep.
+- **GRPOStyleNormalized** — the published GRPO group formula:
+  (return − mean) / (std + eps), broadcast.
+- **GiGPOStyle** — hierarchical episode + anchor-state step grouping, after
+  GiGPO's mechanism.
+- **MonteCarloAdvantage** — Q − V from sampled continuations; converges to
+  the oracle as rollouts grow.
+- **TrajectoryReturnAdapter** — wraps any `f(returns) -> credits` function
+  (e.g. the actual TRL/verl group-advantage computation) so external library
+  code can be scored without adding dependencies here.
 
 ## Metrics: two families
 
@@ -110,8 +125,15 @@ ed LOO introduces **no measurable gradient direction bias** (cosine ≥ 0.9998
 for every estimator, every stop probability), but it removes the large
 timestep-dependent credit-value bias that trajectory-centered broadcast
 carries under variable termination (±0.8 at the extreme timesteps), at
-slightly lower gradient variance. Turn-conditioning buys value-calibration,
-not direction-correction.
+slightly lower gradient variance. Turn-conditioning buys value calibration,
+not direction correction — full write-up with tables in
+[docs/turn_conditioning_note.md](docs/turn_conditioning_note.md).
+
+![mc convergence](results/monte_carlo_convergence.png)
+
+Monte Carlo "approximate ground truth" needs ~256 continuation rollouts per
+(t, s, a) to get within 0.03 RMSE of the exact oracle on an 8-step
+delayed-effect environment — the price the exact solver makes unnecessary.
 
 Reproduce with:
 
@@ -119,6 +141,7 @@ Reproduce with:
 python experiments/delayed_horizon_sweep.py
 python experiments/recovery_diagnostic.py
 python experiments/variable_horizon_sweep.py
+python experiments/monte_carlo_convergence.py
 ```
 
 ## Writing a custom estimator

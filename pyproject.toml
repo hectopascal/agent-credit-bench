@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-credit-bench"
-version = "0.0.1"
+version = "0.2.0"
 description = "Conformance-test suite for turn-level credit estimators, with exact-advantage oracles on tiny finite-horizon MDPs."
 readme = "README.md"
 requires-python = ">=3.10"

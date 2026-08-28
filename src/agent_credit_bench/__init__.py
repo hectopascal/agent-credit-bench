@@ -14,7 +14,7 @@ from agent_credit_bench.types import (
     Transition,
 )
 
-__version__ = "0.0.1"
+__version__ = "0.2.0"
 
 __all__ = [
     "Action",
