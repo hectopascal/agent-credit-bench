@@ -15,13 +15,21 @@ from agent_credit_bench.envs.recovery import RecoveryEnv
 from agent_credit_bench.estimators import (
     BatchCenteredBroadcast,
     EstimatorContext,
+    GiGPOStyle,
+    GRPOStyleNormalized,
     OracleAdvantage,
     OutcomeBroadcast,
 )
 from agent_credit_bench.policy import UniformPolicy
 from agent_credit_bench.sampling import sample_trajectories
 
-ESTIMATORS = (OracleAdvantage(), OutcomeBroadcast(), BatchCenteredBroadcast())
+ESTIMATORS = (
+    OracleAdvantage(),
+    OutcomeBroadcast(),
+    BatchCenteredBroadcast(),
+    GRPOStyleNormalized(),
+    GiGPOStyle(),
+)
 
 
 def main() -> None:

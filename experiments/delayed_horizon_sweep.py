@@ -16,6 +16,8 @@ from agent_credit_bench.envs import DelayedEffectEnv
 from agent_credit_bench.estimators import (
     BatchCenteredBroadcast,
     EstimatorContext,
+    GiGPOStyle,
+    GRPOStyleNormalized,
     OracleAdvantage,
     OutcomeBroadcast,
 )
@@ -24,7 +26,13 @@ from agent_credit_bench.sampling import sample_trajectories
 from agent_credit_bench.types import Trajectory
 
 HORIZONS = (2, 4, 8, 16, 32)
-ESTIMATORS = (OracleAdvantage(), OutcomeBroadcast(), BatchCenteredBroadcast())
+ESTIMATORS = (
+    OracleAdvantage(),
+    OutcomeBroadcast(),
+    BatchCenteredBroadcast(),
+    GRPOStyleNormalized(),
+    GiGPOStyle(),
+)
 
 
 def mean_distractor_credit(
