@@ -33,11 +33,15 @@ def mean_distractor_credit(
 ) -> float:
     """Mean |credit| over steps at t >= 1, where exact advantage is zero.
 
-    TODO(yan): pair each trajectory with its credit row, collect abs(credit)
-    for every step whose timestep >= 1, return the mean. This is the inline
-    precursor of the M3 leakage metric (plan.md §10.4).
+    The inline precursor of the M3 leakage metric (plan.md §10.4).
     """
-    raise NotImplementedError("M2: distractor-credit summary not implemented yet")
+    magnitudes = [
+        abs(credit)
+        for trajectory, row in zip(trajectories, credits, strict=True)
+        for step, credit in zip(trajectory.steps, row, strict=True)
+        if step.timestep >= 1
+    ]
+    return sum(magnitudes) / len(magnitudes)
 
 
 def main() -> None:
