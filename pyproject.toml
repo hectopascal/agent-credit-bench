@@ -13,6 +13,9 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.4"]
 experiments = ["matplotlib>=3.8"]
+# Scores verl's actual advantage implementations (integrations/verl.py).
+# Tested against verl 0.9.0; torch CPU is sufficient.
+verl = ["verl>=0.9"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_credit_bench"]
