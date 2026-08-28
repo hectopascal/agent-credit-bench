@@ -77,11 +77,10 @@ def test_batch_centered_single_trajectory():
         policy=policy,
         trajectories=(Trajectory((Step(0, "s0", "A", 1.0, "done", True),)),),
     )
-    pytest.skip(
-        "TODO(yan): decide the single-trajectory behavior, document it in "
-        "batch_centered.py, then pin it here and delete this skip"
-    )
-    BatchCenteredBroadcast().estimate(context)
+    # Decision (documented in batch_centered.py): the leave-one-out mean is
+    # undefined for a group of one, so this is a caller error, not a value.
+    with pytest.raises(ValueError):
+        BatchCenteredBroadcast().estimate(context)
 
 
 @pytest.mark.parametrize(

@@ -19,5 +19,7 @@ class OutcomeBroadcast:
     def estimate(
         self, context: EstimatorContext
     ) -> tuple[tuple[float, ...], ...]:
-        # TODO(yan): one value per step: the trajectory's total return.
-        raise NotImplementedError("M2: OutcomeBroadcast not implemented yet")
+        return tuple(
+            tuple(trajectory.total_return for _ in trajectory.steps)
+            for trajectory in context.trajectories
+        )

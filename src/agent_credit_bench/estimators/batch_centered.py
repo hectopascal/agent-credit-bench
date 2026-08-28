@@ -5,10 +5,9 @@
 A simple stand-in for group-relative baselines; not labeled as a complete
 GRPO implementation.
 
-Single-trajectory batches: the leave-one-out mean is undefined.
-TODO(yan): decide the behavior (raise ValueError? credit 0?), document it in
-this docstring, then unskip and pin it in
-tests/test_estimators.py::test_batch_centered_single_trajectory.
+Single-trajectory batches raise ValueError: the leave-one-out mean is
+undefined, and silently returning something (0, or the raw return) would hide
+a caller bug — group-relative credit is meaningless without a group.
 """
 
 from dataclasses import dataclass
@@ -23,5 +22,16 @@ class BatchCenteredBroadcast:
     def estimate(
         self, context: EstimatorContext
     ) -> tuple[tuple[float, ...], ...]:
-        # TODO(yan): leave-one-out centered return, broadcast to every step.
-        raise NotImplementedError("M2: BatchCenteredBroadcast not implemented yet")
+        returns = [t.total_return for t in context.trajectories]
+        if len(returns) < 2:
+            raise ValueError(
+                "BatchCenteredBroadcast needs at least two trajectories "
+                "for leave-one-out centering"
+            )
+        total = sum(returns)
+        count = len(returns)
+        credits = []
+        for trajectory, ret in zip(context.trajectories, returns, strict=True):
+            baseline = (total - ret) / (count - 1)
+            credits.append(tuple(ret - baseline for _ in trajectory.steps))
+        return tuple(credits)
