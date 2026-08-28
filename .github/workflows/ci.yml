@@ -29,5 +29,7 @@ jobs:
           python-version: "3.12"
       # CPU wheel first so the resolver doesn't pull the CUDA build.
       - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install -e ".[dev]" "verl==0.9.0"
+      # cachetools/uvicorn/fastapi: verl's agent-loop import path needs the
+      # server stack that an inference-backend install normally provides.
+      - run: pip install -e ".[dev]" "verl==0.9.0" cachetools uvicorn fastapi
       - run: pytest tests/test_verl_integration.py

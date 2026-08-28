@@ -121,6 +121,15 @@ findings (e.g. verl's RLOO is bit-exactly our `BatchCenteredBroadcast`) in
 out of the core: zero runtime dependencies without the extra, and the verl
 tests skip when verl is absent (CI runs them in a dedicated job).
 
+Going further, [recipes/verl_bridge](recipes/verl_bridge/) runs suite
+environments *inside* a real verl training run as multi-turn chat games:
+a registered agent loop plays the MDP with a live model, logs episodes,
+and `analyze_checkpoint.py` scores every estimator against exact
+advantages under the empirical policy the model actually played — exact
+ground truth on real training data. The framework-free half of that bridge
+(`agent_credit_bench.integrations.bridge`) also works with any
+text-in/text-out model, no verl required.
+
 ## Metrics: two families
 
 Exact advantage plus any state-dependent shift `b(t, s)` yields the same

@@ -1,0 +1,5 @@
+# Custom agent-loop registry for verl (0.9.0 experimental agent-loop API).
+# Pass via: actor_rollout_ref.rollout.agent.agent_loop_config_path=<this file>
+# bridge_agent_loop must be importable (put recipes/verl_bridge on PYTHONPATH).
+- name: credit_bench_bridge
+  _target_: bridge_agent_loop.CreditBenchBridgeLoop

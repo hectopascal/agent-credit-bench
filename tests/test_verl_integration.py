@@ -5,8 +5,11 @@ default environment stays green. Run them with the [verl] extra installed;
 CI has a dedicated job for it.
 """
 
+import importlib
 import importlib.util
 import statistics
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -142,6 +145,23 @@ def test_verl_gae_perfect_critic_lambda_zero_distractor_credit_is_constant() -> 
 def test_verl_gae_rejects_unknown_critic() -> None:
     with pytest.raises(ValueError):
         VerlGAE(critic="learned")
+
+
+def test_bridge_agent_loop_registers_matching_yaml() -> None:
+    """Importing the recipe registers the loop under the name the YAML uses."""
+    recipe_dir = Path(__file__).resolve().parent.parent / "recipes" / "verl_bridge"
+    sys.path.insert(0, str(recipe_dir))
+    try:
+        importlib.import_module("bridge_agent_loop")
+    finally:
+        sys.path.remove(str(recipe_dir))
+    from omegaconf import OmegaConf
+    from verl.experimental.agent_loop.agent_loop import _agent_loop_registry
+
+    entry = _agent_loop_registry["credit_bench_bridge"]
+    configured = OmegaConf.load(recipe_dir / "agent_loops.yaml")
+    assert configured[0].name == "credit_bench_bridge"
+    assert entry["_target_"] == configured[0]._target_
 
 
 def test_run_benchmark_accepts_verl_estimator() -> None:
