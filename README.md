@@ -93,42 +93,61 @@ print(result.gradient_direction_bias, result.seed_metrics[0].leakage_ratio)
   (e.g. the actual TRL/verl group-advantage computation) so external library
   code can be scored without adding dependencies here.
 
-## Scoring verl's actual implementations
+## Scoring real framework implementations
 
-With the optional extra, the suite runs directly against
-[verl](https://github.com/volcengine/verl)'s own advantage functions —
-the real `core_algos` code, not the "-style" reimplementations above:
+With optional extras, the suite runs directly against the advantage code of
+three frameworks — [verl](https://github.com/volcengine/verl)'s importable
+`core_algos` functions, [TRL](https://github.com/huggingface/trl)'s
+trainer math (transcribed and pinned to the installed source by fingerprint
+tests), and [OpenRLHF](https://github.com/OpenRLHF/OpenRLHF)'s full
+`compute_advantages_and_returns` pipeline — not the "-style"
+reimplementations above:
 
 ```bash
-pip install "agent-credit-bench[verl]"   # torch CPU is sufficient
-python experiments/verl_conformance.py
+pip install "agent-credit-bench[verl]"   # or [trl]; torch CPU is sufficient
+python experiments/cross_framework_conformance.py
 ```
 
-| estimator (verl 0.9.0)   | credit(BAD) | credit(RECOVER) | praises both |
-| ------------------------ | ----------- | --------------- | ------------ |
-| verl_grpo                | +0.59       | +0.59           | 100%         |
-| verl_rloo                | +0.26       | +0.26           | 100%         |
-| verl_reinforce_plus_plus | +0.72       | +0.72           | 100%         |
-| verl_gae_exact_lam1      | +0.56       | +1.10           | 100%         |
-| verl_gae_exact_lam0      | −0.69       | +1.42           | 0%           |
+Selected rows (recovery diagnostic; full table in
+`results/cross_framework_recovery.csv`):
 
-Two headlines: every outcome-based estimator in verl praises the repaired
-mistake, and GAE with a *perfect* critic still does at verl's default
-λ = 1 — at λ = 1 the critic only sets the baseline; only λ < 1 bootstraps
-on it and separates turns. Details, packing semantics, and three more
-findings (e.g. verl's RLOO is bit-exactly our `BatchCenteredBroadcast`) in
-[docs/verl_integration.md](docs/verl_integration.md). The integration stays
-out of the core: zero runtime dependencies without the extra, and the verl
-tests skip when verl is absent (CI runs them in a dedicated job).
+| estimator                        | credit(BAD) | credit(RECOVER) | praises both |
+| -------------------------------- | ----------- | --------------- | ------------ |
+| oracle_advantage                 | −0.25       | +0.50           | 0%           |
+| verl_grpo                        | +0.59       | +0.59           | 100%         |
+| trl_grpo                         | +0.59       | +0.59           | 100%         |
+| openrlhf_group_norm              | +0.59       | +0.59           | 100%         |
+| verl_rloo = trl_rloo = openrlhf_rloo | +0.26   | +0.26           | 100%         |
+| verl_gae_exact_lam1              | +0.56       | +1.10           | 100%         |
+| verl_gae_exact_lam0              | −0.69       | +1.42           | 0%           |
+
+Three headlines. Every outcome-based estimator in all three frameworks
+praises the repaired mistake. GAE with a *perfect* critic still does at
+λ = 1 — the default in both verl and OpenRLHF — because at λ = 1 the critic
+only sets the baseline; only λ < 1 bootstraps on it and separates turns.
+And the three RLOO implementations are bit-identical (all match this
+suite's `BatchCenteredBroadcast` to 1e-9), while the three GRPOs share the
+formula but not the epsilon (verl 1e-6, TRL 1e-4, OpenRLHF 1e-9). Details
+and more findings per framework:
+[docs/verl_integration.md](docs/verl_integration.md),
+[docs/trl_integration.md](docs/trl_integration.md),
+[docs/openrlhf_integration.md](docs/openrlhf_integration.md). The
+integrations stay out of the core: zero runtime dependencies without the
+extras, and each framework's tests skip when it is absent (CI runs each in
+a dedicated job; OpenRLHF's is Linux-only).
 
 Going further, [recipes/verl_bridge](recipes/verl_bridge/) runs suite
 environments *inside* a real verl training run as multi-turn chat games:
 a registered agent loop plays the MDP with a live model, logs episodes,
 and `analyze_checkpoint.py` scores every estimator against exact
 advantages under the empirical policy the model actually played — exact
-ground truth on real training data. The framework-free half of that bridge
-(`agent_credit_bench.integrations.bridge`) also works with any
-text-in/text-out model, no verl required.
+ground truth on real training data.
+[recipes/verifiers_bridge](recipes/verifiers_bridge/) does the same for
+[verifiers](https://github.com/PrimeIntellect-ai/verifiers) (the
+environment library behind prime-rl and the Environments Hub) as a
+`MultiTurnEnv` with a `load_environment` entry point. The framework-free
+half of both bridges (`agent_credit_bench.integrations.bridge`) also works
+with any text-in/text-out model, no framework required.
 
 ## Metrics: two families
 

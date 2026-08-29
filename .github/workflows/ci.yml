@@ -33,3 +33,44 @@ jobs:
       # server stack that an inference-backend install normally provides.
       - run: pip install -e ".[dev]" "verl==0.9.0" cachetools uvicorn fastapi
       - run: pytest tests/test_verl_integration.py
+
+  trl-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e ".[dev]" "trl==1.12.0"
+      - run: pytest tests/test_trl_integration.py
+
+  verifiers-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" "verifiers==0.1.14"
+      - run: pytest tests/test_verifiers_integration.py
+
+  openrlhf-integration:
+    # openrlhf ships Linux-x86_64-only wheels; this job mirrors the Docker
+    # recipe in docs/openrlhf_integration.md.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # All three torch packages from the CPU index — mixing PyPI CUDA
+      # builds of torchvision/torchaudio with CPU torch breaks at import.
+      - run: pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
+      # --no-deps: a full install drags in vllm/flash-attn (CUDA-only); the
+      # advantage pipeline's import chain needs only the packages below,
+      # plus the import-time stubs the script writes.
+      - run: pip install openrlhf --no-deps
+      - run: pip install -e ".[dev]" ray transformers peft deepspeed pylatexenc torchdata
+      - run: python scripts/openrlhf_cpu_stubs.py
+      - run: pytest tests/test_openrlhf_integration.py

@@ -53,7 +53,7 @@ def build_estimators() -> list:
         GRPOStyleNormalized(),
         GiGPOStyle(),
     ]
-    # integrations.verl imports lazily, so probe for verl itself.
+    # the integrations import lazily, so probe for the frameworks themselves.
     if importlib.util.find_spec("verl") is None:
         print("(verl not installed — skipping verl estimator rows)")
     else:
@@ -64,6 +64,25 @@ def build_estimators() -> list:
         )
 
         estimators += [VerlGRPO(), VerlRLOO(), VerlGAE(critic="exact", lam=0.0)]
+    if importlib.util.find_spec("trl") is None:
+        print("(trl not installed — skipping trl estimator rows)")
+    else:
+        from agent_credit_bench.integrations.trl import TrlGRPO, TrlRLOO
+
+        estimators += [TrlGRPO(), TrlRLOO()]
+    if importlib.util.find_spec("openrlhf") is None:
+        print("(openrlhf not installed — skipping openrlhf estimator rows)")
+    else:
+        from agent_credit_bench.integrations.openrlhf import (
+            OpenRLHFGAE,
+            OpenRLHFOutcome,
+        )
+
+        estimators += [
+            OpenRLHFOutcome("group_norm"),
+            OpenRLHFOutcome("rloo"),
+            OpenRLHFGAE(critic="exact", lam=0.0),
+        ]
     return estimators
 
 
