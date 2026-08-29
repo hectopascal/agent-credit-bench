@@ -1,8 +1,4 @@
-# agent-credit-bench (answer key)
-
-> **Note:** this is the complete reference implementation ("answer key") of the
-> `agent-credit-bench` plan. The companion learning repo is built milestone by
-> milestone by hand; peek here only when stuck.
+# agent-credit-bench
 
 AgentCreditBench is a lightweight conformance-test suite for turn-level credit
 estimators, using tiny finite-horizon MDPs where the exact policy advantage of
