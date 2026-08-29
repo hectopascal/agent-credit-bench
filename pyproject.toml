@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-credit-bench"
-version = "0.4.0"
+version = "0.5.0"
 description = "Conformance-test suite for turn-level credit estimators, with exact-advantage oracles on tiny finite-horizon MDPs."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,6 +16,15 @@ experiments = ["matplotlib>=3.8"]
 # Scores verl's actual advantage implementations (integrations/verl.py).
 # Tested against verl 0.9.0; torch CPU is sufficient.
 verl = ["verl>=0.9"]
+# Scores TRL's advantage computations (integrations/trl.py).
+# Transcribed from and tested against TRL 1.12.0; torch CPU is sufficient.
+trl = ["trl>=1.12"]
+# Scores OpenRLHF's advantage pipeline (integrations/openrlhf.py).
+# Linux-x86_64-only wheels; see docs/openrlhf_integration.md for the
+# --no-deps install that avoids the vllm/flash-attn stack.
+openrlhf = ["openrlhf>=0.11"]
+# Plays suite environments inside verifiers (recipes/verifiers_bridge).
+verifiers = ["verifiers>=0.1.14"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_credit_bench"]
