@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use Agent Credit Bench in your research, please cite this software."
-title: "Agent Credit Bench: A Conformance-Test Suite for Turn-Level Credit Estimators"
+message: "If you use AgentCreditBench in your research, please cite this software."
+title: "AgentCreditBench: A Conformance-Test Suite for Turn-Level Credit Estimators"
 type: software
 authors:
   - name: "Yi Yan Ng"

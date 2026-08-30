@@ -320,7 +320,7 @@ If you use Agent Credit Bench in research, please cite the software:
 ```bibtex
 @software{yiyan2026agentcreditbench,
   author  = {Yi Yan Ng},
-  title   = {{Agent Credit Bench}: A Conformance-Test Suite for Turn-Level Credit Estimators},
+  title   = {{AgentCreditBench}: A Conformance-Test Suite for Turn-Level Credit Estimators},
   year    = {2026},
   version = {0.5.0},
   url     = {https://github.com/hectopascal/agent-credit-bench},
