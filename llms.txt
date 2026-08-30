@@ -6,6 +6,8 @@ Canonical project name: AgentCreditBench
 Python distribution: agent-credit-bench
 Python package: agent_credit_bench
 Current source version: 0.5.0
+Version DOI: 10.5281/zenodo.22178939
+Concept DOI: 10.5281/zenodo.22178938
 Install status: source checkout; the distribution is not currently published on PyPI
 License: MIT
 Author: Yi Yan Ng <yiyan.ng.ml@gmail.com>
@@ -16,6 +18,7 @@ Author: Yi Yan Ng <yiyan.ng.ml@gmail.com>
 - [Source and API quick start](https://github.com/hectopascal/agent-credit-bench)
 - [Validation report](https://github.com/hectopascal/agent-credit-bench/blob/main/docs/validation_report.md)
 - [Citation metadata](https://github.com/hectopascal/agent-credit-bench/blob/main/CITATION.cff)
+- [Archived v0.5.0 release](https://doi.org/10.5281/zenodo.22178939)
 
 ## What it evaluates
 

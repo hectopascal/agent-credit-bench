@@ -40,6 +40,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://hectopascal.github.io/agent-credit-bench/"
 Documentation = "https://hectopascal.github.io/agent-credit-bench/"
+Archive = "https://doi.org/10.5281/zenodo.22178938"
 Source = "https://github.com/hectopascal/agent-credit-bench"
 Issues = "https://github.com/hectopascal/agent-credit-bench/issues"
 Changelog = "https://github.com/hectopascal/agent-credit-bench/releases"

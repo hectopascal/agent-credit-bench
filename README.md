@@ -1,5 +1,7 @@
 # AgentCreditBench
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22178938.svg)](https://doi.org/10.5281/zenodo.22178938)
+
 **Unit tests for turn-level credit assignment in agentic reinforcement learning.**
 
 AgentCreditBench evaluates credit estimators on tiny finite-horizon MDPs with exact policy-advantage oracles.
@@ -359,12 +361,17 @@ If you use AgentCreditBench in research, please cite the software:
   title   = {{AgentCreditBench}: A Conformance-Test Suite for Turn-Level Credit Estimators},
   year    = {2026},
   version = {0.5.0},
+  doi     = {10.5281/zenodo.22178939},
   url     = {https://github.com/hectopascal/agent-credit-bench},
   license = {MIT}
 }
 ```
 
-GitHub-compatible citation metadata is also provided in `CITATION.cff`.
+The version-specific DOI for `v0.5.0` is
+[10.5281/zenodo.22178939](https://doi.org/10.5281/zenodo.22178939). The
+[concept DOI](https://doi.org/10.5281/zenodo.22178938) always resolves to the
+latest archived release. GitHub-compatible citation metadata is also provided
+in `CITATION.cff`.
 
 ## References
 
