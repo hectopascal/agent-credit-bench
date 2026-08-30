@@ -32,8 +32,8 @@ def test_oracle_estimator_scores_perfectly():
         assert m.centered_rmse == pytest.approx(0.0, abs=1e-9)
         assert m.leakage_ratio == pytest.approx(0.0, abs=1e-6)
         assert m.sign_accuracy == pytest.approx(1.0)
-    assert result.gradient_direction_bias > 0.999
-    assert result.gradient_magnitude_error < 0.2
+    assert result.mean_gradient_cosine > 0.999
+    assert result.relative_mean_gradient_error < 0.2
 
 
 def test_outcome_broadcast_smears_but_points_roughly_right():
@@ -41,8 +41,8 @@ def test_outcome_broadcast_smears_but_points_roughly_right():
     for m in result.seed_metrics:
         assert m.leakage_ratio > 0.5  # most credit lands on zero-advantage steps
         assert m.rmse > 0.3
-    # Direction bias should be far smaller than the value error suggests.
-    assert result.gradient_direction_bias > 0.9
+    # Direction agreement should be far stronger than the value error suggests.
+    assert result.mean_gradient_cosine > 0.9
     # And its gradient variance should dwarf the oracle's.
     oracle = run(OracleAdvantage())
     assert result.gradient_variance > 5 * oracle.gradient_variance
@@ -64,12 +64,19 @@ def test_batch_centered_runs_and_reports_all_rows():
         "sign_num_excluded",
         "leakage_ratio",
         "gradient_cosine",
+        "mean_gradient_cosine",
+        "relative_mean_gradient_error",
         "gradient_direction_bias",
         "gradient_magnitude_error",
         "gradient_variance",
     }
     assert set(rows[0]) == expected_keys
     assert all(row["estimator"] == "batch_centered_broadcast" for row in rows)
+    assert rows[0]["gradient_direction_bias"] == rows[0]["mean_gradient_cosine"]
+    assert (
+        rows[0]["gradient_magnitude_error"]
+        == rows[0]["relative_mean_gradient_error"]
+    )
 
 
 def test_per_turn_stats_cover_every_timestep():

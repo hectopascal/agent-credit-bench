@@ -3,16 +3,18 @@
 Turns any FiniteHorizonMDP into a text game an LLM can play: states render
 to chat messages, model replies parse back to actions, and realized
 transitions are recorded as ordinary suite Steps. Because the underlying MDP
-stays known, real-model rollouts remain exactly scoreable: estimate the
-empirical policy from the logged episodes, solve exact values under it, and
-every suite metric applies to real LLM behavior.
+stays known, logged actions can be projected onto a tabular Markov policy
+conditioned on ``(timestep, state)``. Dynamic programming is exact for that
+fitted projection, so every suite metric can be applied to the logged sample.
+The projection has finite-sample error and deliberately collapses any extra
+conversation-history dependence in the LLM policy; it is not an exact oracle
+for the history-conditioned model itself.
 
-Exactness survives imperfect models because the text-to-action mapping is
-part of the environment: whatever gets *executed* (including the
-deterministic fallback for unparseable replies) defines the effective
-policy, and the oracle is exact for that policy. The parsed-rate is still
-reported — a high unparsed fraction means the measured policy is mostly the
-fallback, not the model.
+Unparseable replies default to a deterministic, conservative mapping: choose
+the legal action with the minimum expected episode return when all later
+choices also minimize return. Callers can instead configure parse failures to
+raise. Either way, the parsed-rate distinguishes model-selected actions from
+environment-selected fallbacks.
 
 No framework imports here; the verl recipe (recipes/verl_bridge/) builds on
 these pieces, and any text-in/text-out callable works via play_episode.
@@ -27,7 +29,7 @@ import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from agent_credit_bench.envs import DelayedEffectEnv, RecoveryEnv, VariableHorizonEnv
 from agent_credit_bench.mdp import FiniteHorizonMDP
@@ -38,6 +40,8 @@ ENVS: dict[str, Callable[..., FiniteHorizonMDP]] = {
     "delayed_effect": DelayedEffectEnv,
     "variable_horizon": VariableHorizonEnv,
 }
+
+ParseFailurePolicy = Literal["minimum_return", "raise"]
 
 
 def make_env(name: str, **params: Any) -> FiniteHorizonMDP:
@@ -84,6 +88,53 @@ def parse_action(text: str, actions: Sequence[Action]) -> Action | None:
     return best
 
 
+def minimum_return_action(
+    mdp: FiniteHorizonMDP,
+    timestep: int,
+    state: State,
+    actions: Sequence[Action] | None = None,
+) -> Action:
+    """Choose a deterministic, pessimistic fallback for an unparseable reply.
+
+    Backward induction minimizes expected undiscounted episode return, assuming
+    future parse failures also take minimum-return actions. The first action in
+    the MDP's declared order breaks exact value ties. This makes the fallback
+    reproducible without silently rewarding malformed output merely because a
+    favorable action happened to be listed first.
+    """
+    value_cache: dict[tuple[int, State], float] = {}
+
+    def action_value(at: int, at_state: State, action: Action) -> float:
+        total = 0.0
+        for transition in mdp.transitions(at, at_state, action):
+            terminal = transition.terminated or at + 1 >= mdp.horizon
+            future = 0.0 if terminal else state_value(at + 1, transition.next_state)
+            total += transition.probability * (transition.reward + future)
+        return total
+
+    def state_value(at: int, at_state: State) -> float:
+        key = (at, at_state)
+        if key not in value_cache:
+            legal = list(mdp.actions(at, at_state))
+            if not legal:
+                raise ValueError(
+                    f"no legal actions at (t={at}, state={at_state!r})"
+                )
+            value_cache[key] = min(
+                action_value(at, at_state, action) for action in legal
+            )
+        return value_cache[key]
+
+    source_actions = actions if actions is not None else mdp.actions(timestep, state)
+    legal_actions = list(source_actions)
+    if not legal_actions:
+        raise ValueError(f"no legal actions at (t={timestep}, state={state!r})")
+    return min(
+        legal_actions,
+        key=lambda action: action_value(timestep, state, action),
+    )
+
+
 @dataclass(frozen=True)
 class BridgeTurn:
     observation: str
@@ -105,11 +156,15 @@ class BridgeSession:
 
     mdp: FiniteHorizonMDP
     seed: int | None = None
-    fallback_action_index: int = 0
+    parse_failure_policy: ParseFailurePolicy = "minimum_return"
     _rng: random.Random = field(init=False, repr=False)
     _turns: list[BridgeTurn] = field(init=False, default_factory=list)
 
     def __post_init__(self) -> None:
+        if self.parse_failure_policy not in ("minimum_return", "raise"):
+            raise ValueError(
+                "parse_failure_policy must be 'minimum_return' or 'raise'"
+            )
         self._rng = random.Random(self.seed)
         self.state: State = self.mdp.initial_state
         self.timestep = 0
@@ -133,7 +188,16 @@ class BridgeSession:
             raise RuntimeError("episode is over")
         actions = self.available_actions
         parsed = parse_action(reply, actions)
-        action = parsed if parsed is not None else actions[self.fallback_action_index]
+        if parsed is not None:
+            action = parsed
+        elif self.parse_failure_policy == "raise":
+            raise ValueError(
+                f"reply did not name a legal action from {actions!r}: {reply!r}"
+            )
+        else:
+            action = minimum_return_action(
+                self.mdp, self.timestep, self.state, actions
+            )
 
         transitions = list(self.mdp.transitions(self.timestep, self.state, action))
         transition = self._rng.choices(
@@ -173,9 +237,12 @@ def play_episode(
     mdp: FiniteHorizonMDP,
     respond: Callable[[list[dict[str, str]]], str],
     seed: int | None = None,
+    parse_failure_policy: ParseFailurePolicy = "minimum_return",
 ) -> BridgeSession:
     """Drive one full episode with any messages -> reply-text callable."""
-    session = BridgeSession(mdp, seed=seed)
+    session = BridgeSession(
+        mdp, seed=seed, parse_failure_policy=parse_failure_policy
+    )
     messages = [{"role": "system", "content": render_system_prompt(mdp)}]
     while not session.done:
         messages.append({"role": "user", "content": session.observe()})
@@ -193,6 +260,7 @@ def episode_record(
         raise ValueError("episode is not finished")
     return {
         "env": env,
+        "parse_failure_policy": session.parse_failure_policy,
         "total_return": session.total_return,
         "turns": [
             {
@@ -239,27 +307,35 @@ def load_episodes(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
 
 @dataclass(frozen=True)
 class EmpiricalTabularPolicy:
-    """The policy actually played, measured by (timestep, state) action counts.
+    """Finite-sample Markov projection from logged action counts.
+
+    The table estimates ``pi_hat(action | timestep, state)``. It aggregates
+    trajectories that reach the same key even if their prompts or earlier
+    conversation histories differ. Exact MDP solutions using this object are
+    therefore exact for the fitted Markov projection, not for a potentially
+    history-conditioned LLM policy. The action frequencies also retain normal
+    finite-sample estimation error.
 
     Unvisited states fall back to uniform: they carry no visitation mass in
     the logged data, but the exact solver still needs a distribution there.
-    Solving exact values under this policy makes the suite's metrics exact
-    for the measured behavior, up to the finite-sample error of the counts.
     """
 
     counts: Mapping[tuple[int, State], Mapping[Action, int]]
+    sample_size: int | None = None
 
     @classmethod
     def from_trajectories(
         cls, trajectories: Iterable[Trajectory]
     ) -> "EmpiricalTabularPolicy":
         counts: dict[tuple[int, State], dict[Action, int]] = {}
+        sample_size = 0
         for trajectory in trajectories:
+            sample_size += 1
             for step in trajectory.steps:
                 key = (step.timestep, step.state)
                 at_key = counts.setdefault(key, {})
                 at_key[step.action] = at_key.get(step.action, 0) + 1
-        return cls(counts=counts)
+        return cls(counts=counts, sample_size=sample_size)
 
     def visit_count(self, timestep: int, state: State) -> int:
         return sum(self.counts.get((timestep, state), {}).values())

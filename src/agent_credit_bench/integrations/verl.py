@@ -30,6 +30,7 @@ Tested against verl 0.9.0 (torch CPU is sufficient).
 """
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from types import SimpleNamespace
 from typing import Any
 
@@ -37,9 +38,29 @@ from agent_credit_bench.estimators.base import EstimatorContext
 from agent_credit_bench.oracle import solve_exact_values
 from agent_credit_bench.types import Trajectory
 
+_SUPPORTED_VERL_VERSION = "0.9.0"
+
+
+def _require_supported_verl_version() -> None:
+    """Fail closed when verl's private advantage API may have changed."""
+    try:
+        installed = version("verl")
+    except PackageNotFoundError as exc:
+        raise ImportError(
+            "verl is required for agent_credit_bench.integrations.verl — "
+            'install it with: pip install "agent-credit-bench[verl]"'
+        ) from exc
+    if installed != _SUPPORTED_VERL_VERSION:
+        raise RuntimeError(
+            "agent_credit_bench.integrations.verl targets verl "
+            f"{_SUPPORTED_VERL_VERSION}, but {installed} is installed; install "
+            f"verl=={_SUPPORTED_VERL_VERSION} or re-validate the adapter"
+        )
+
 
 def _verl_core_algos() -> tuple[Any, Any, Any]:
     """Return (torch, numpy, verl.trainer.ppo.core_algos), or raise clearly."""
+    _require_supported_verl_version()
     try:
         import numpy
         import torch
@@ -106,6 +127,9 @@ class VerlGRPO:
     (mean-centering only). Note two deltas from the suite's
     GRPOStyleNormalized reimplementation: verl divides by the Bessel-corrected
     sample std (``torch.std``), not the population std, and uses epsilon 1e-6.
+    Those grouped formulas apply for groups of at least two; verl 0.9.0's
+    explicit singleton fallback broadcasts the sequence score (divided by
+    ``1 + epsilon`` in normalized GRPO).
     """
 
     norm_adv_by_std: bool = True
@@ -132,8 +156,10 @@ class VerlGRPO:
 class VerlRLOO:
     """verl's ``compute_rloo_outcome_advantage`` (leave-one-out baseline).
 
-    Algebraically identical to the suite's BatchCenteredBroadcast:
-    ``r*n/(n-1) - mean*n/(n-1) == r - mean(others)``.
+    For groups of at least two, this is algebraically identical to the suite's
+    BatchCenteredBroadcast:
+    ``r*n/(n-1) - mean*n/(n-1) == r - mean(others)``. verl 0.9.0 handles a
+    singleton group separately by broadcasting its raw score.
     """
 
     name: str = "verl_rloo"
@@ -177,14 +203,15 @@ class VerlReinforcePlusPlus:
 class VerlGAE:
     """verl's ``compute_gae_advantage_return`` with a controlled critic.
 
-    ``critic="exact"`` feeds the oracle's V^pi(t, s) as the value tensor —
-    GAE with a perfect critic, isolating the estimator from critic error.
-    ``critic="zero"`` feeds zeros — the no-critic worst case. Padding cells
-    get value 0, which verl's masked recursion never reads.
+    ``critic="exact"`` feeds the oracle's undiscounted V^pi(t, s) as the
+    value tensor and therefore requires ``gamma=1`` — GAE with a perfect
+    critic, isolating the estimator from critic error. ``critic="zero"``
+    feeds zeros and permits other gamma values. Padding cells get value 0,
+    which verl's masked recursion never reads.
 
-    Note that at ``lam=1`` GAE is return-to-go minus baseline, so even a
-    perfect critic praises repaired mistakes; only ``lam < 1`` actually
-    bootstraps on the critic and separates turns.
+    At ``lam=1`` GAE is return-to-go minus baseline, so even a perfect critic
+    can give selected successful repairs positive BAD credit. Only ``lam < 1``
+    bootstraps on the critic and separates the two selected turns.
 
     verl whitens the advantages across the batch before returning them, so
     even the perfect-critic variant returns shifted/scaled credit values —
@@ -199,6 +226,11 @@ class VerlGAE:
     def __post_init__(self) -> None:
         if self.critic not in ("exact", "zero"):
             raise ValueError(f"critic must be 'exact' or 'zero', got {self.critic!r}")
+        if self.critic == "exact" and self.gamma != 1.0:
+            raise ValueError(
+                "critic='exact' is only available with gamma=1.0 because "
+                "the suite oracle is undiscounted"
+            )
 
     @property
     def name(self) -> str:

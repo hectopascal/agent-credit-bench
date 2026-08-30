@@ -70,7 +70,7 @@ jobs:
       # --no-deps: a full install drags in vllm/flash-attn (CUDA-only); the
       # advantage pipeline's import chain needs only the packages below,
       # plus the import-time stubs the script writes.
-      - run: pip install openrlhf --no-deps
-      - run: pip install -e ".[dev]" ray transformers peft deepspeed pylatexenc torchdata
+      - run: pip install openrlhf==0.11.0 --no-deps
+      - run: pip install -e ".[dev]" -r requirements/openrlhf-cpu.txt
       - run: python scripts/openrlhf_cpu_stubs.py
       - run: pytest tests/test_openrlhf_integration.py

@@ -5,9 +5,10 @@ Linux-x86_64-only wheels, so on macOS these always skip — CI runs them in a
 dedicated Linux job, and they can be run locally via Docker (see
 docs/openrlhf_integration.md).
 
-Tolerances: the pipeline's batch whitening computes its mean/rstd in
-float32, so whitened estimators (reinforce, reinforce_baseline, gae) are
-asserted at 1e-5; unwhitened ones (rloo, group_norm, dr_grpo) at 1e-9.
+The pipeline's whitening uses population variance (unlike verl's
+Bessel-corrected helper) and computes its mean/rstd in float32. Tests compare
+against the population formula with float32-aware tolerances; unwhitened
+estimators (rloo, group_norm, dr_grpo) are asserted at 1e-9.
 """
 
 import importlib.util
@@ -80,7 +81,7 @@ def test_openrlhf_dr_grpo_is_mean_centering_only() -> None:
 
 
 def test_openrlhf_reinforce_baseline_is_whitened_dr_grpo() -> None:
-    """reinforce_baseline = dr_grpo's centering + the batch whitening pass."""
+    """The whitening pass uses population, not Bessel-corrected, variance."""
     context = variable_horizon_context()
     whitened = OpenRLHFOutcome("reinforce_baseline").estimate(context)
     centered = OpenRLHFOutcome("dr_grpo").estimate(context)
@@ -89,13 +90,15 @@ def test_openrlhf_reinforce_baseline_is_whitened_dr_grpo() -> None:
     assert statistics.fmean(flat_whitened) == pytest.approx(0.0, abs=1e-5)
     assert statistics.pstdev(flat_whitened) == pytest.approx(1.0, abs=1e-4)
     scale = statistics.pstdev(flat_centered)
+    sample_scale = statistics.stdev(flat_centered)
+    assert scale != pytest.approx(sample_scale)
     shift = statistics.fmean(flat_centered)
     for w, c in zip(flat_whitened, flat_centered, strict=True):
         assert w == pytest.approx((c - shift) / scale, abs=1e-4)
 
 
-def test_openrlhf_outcome_estimators_praise_bad_on_recovery() -> None:
-    """The suite's headline failure, on OpenRLHF's real pipeline."""
+def test_openrlhf_outcome_estimators_are_positive_on_selected_recovery() -> None:
+    """Check the conditional successful-repair credit diagnostic."""
     context = recovery_context()
     recovered = [
         i
@@ -109,11 +112,11 @@ def test_openrlhf_outcome_estimators_praise_bad_on_recovery() -> None:
     for estimator_name in ("rloo", "group_norm", "reinforce", "reinforce_baseline"):
         credits = OpenRLHFOutcome(estimator_name).estimate(context)
         for i in recovered:
-            assert credits[i][0] > 0, f"{estimator_name} should praise BAD"
-            assert credits[i][1] > 0, f"{estimator_name} should praise RECOVER"
+            assert credits[i][0] > 0, f"{estimator_name}: expected BAD > 0"
+            assert credits[i][1] > 0, f"{estimator_name}: expected RECOVER > 0"
 
 
-def test_openrlhf_gae_default_lambda_praises_bad_with_perfect_critic() -> None:
+def test_openrlhf_gae_default_lambda_is_positive_on_selected_bad() -> None:
     """OpenRLHF's default lambd=1 has the same blind spot as verl's."""
     context = recovery_context()
     recovered = [
@@ -126,7 +129,7 @@ def test_openrlhf_gae_default_lambda_praises_bad_with_perfect_critic() -> None:
     lam1 = OpenRLHFGAE(critic="exact", lam=1.0).estimate(context)
     lam0 = OpenRLHFGAE(critic="exact", lam=0.0).estimate(context)
     for i in recovered:
-        assert lam1[i][0] > 0, "lam=1: perfect critic still praises BAD"
+        assert lam1[i][0] > 0, "lam=1: expected selected BAD credit > 0"
         assert lam0[i][0] < lam0[i][1], "lam=0: critic separates BAD from RECOVER"
 
 
@@ -161,5 +164,5 @@ def test_run_benchmark_accepts_openrlhf_estimator() -> None:
         batch_size=200,
         seeds=range(2),
     )
-    assert result.gradient_direction_bias > 0.99
+    assert result.mean_gradient_cosine > 0.99
     assert all(m.gradient_cosine > 0.9 for m in result.seed_metrics)

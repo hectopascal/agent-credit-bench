@@ -2,9 +2,9 @@
 
 The model plays a verbalized suite MDP as a multi-turn chat game, exactly as
 in the verl bridge: the framework-free machinery (rendering, parsing,
-transition sampling, fallback) all lives in
+transition sampling, parse-failure handling) all lives in
 ``agent_credit_bench.integrations.bridge`` — this file only adapts it to
-verifiers' rollout loop, so the exactness argument from
+verifiers' rollout loop, so the projection caveat from
 ``recipes/verl_bridge/README.md`` carries over unchanged.
 
 Per rollout: ``setup_state`` opens a BridgeSession, ``env_response`` feeds
@@ -34,6 +34,7 @@ from datasets import Dataset
 
 from agent_credit_bench.integrations.bridge import (
     BridgeSession,
+    ParseFailurePolicy,
     episode_record,
     make_env,
     render_state,
@@ -78,22 +79,28 @@ class CreditBenchEnv(vf.MultiTurnEnv):
         env_params: dict[str, Any] | None = None,
         seed: int | None = None,
         episodes_path: str | None = None,
+        parse_failure_policy: ParseFailurePolicy = "minimum_return",
         **kwargs: Any,
     ):
         self.env_name = env_name
         self.env_params = dict(env_params or {})
         self.seed = seed
+        self.parse_failure_policy = parse_failure_policy
         self.episodes_path = episodes_path or os.environ.get(EPISODES_PATH_ENV)
         horizon = make_env(env_name, **self.env_params).horizon
         # Env-side termination always fires within `horizon` assistant turns
-        # (the parse fallback keeps every reply actionable); the +2 backstop
+        # (the default parse fallback keeps every reply actionable); the +2 backstop
         # only catches rollouts that error out mid-episode.
         kwargs.setdefault("max_turns", horizon + 2)
         super().__init__(**kwargs)
 
     async def setup_state(self, state: dict[str, Any]) -> None:
         mdp = make_env(self.env_name, **self.env_params)
-        state["credit_bench_session"] = BridgeSession(mdp, seed=self.seed)
+        state["credit_bench_session"] = BridgeSession(
+            mdp,
+            seed=self.seed,
+            parse_failure_policy=self.parse_failure_policy,
+        )
 
     async def env_response(
         self, messages: list[dict[str, Any]], state: dict[str, Any], **kwargs: Any
@@ -156,6 +163,7 @@ def load_environment(
     num_eval_examples: int = 256,
     seed: int | None = None,
     episodes_path: str | None = None,
+    parse_failure_policy: ParseFailurePolicy = "minimum_return",
     **kwargs: Any,
 ) -> vf.Environment:
     """Environments-Hub entry point."""
@@ -171,6 +179,7 @@ def load_environment(
         env_params=params,
         seed=seed,
         episodes_path=episodes_path,
+        parse_failure_policy=parse_failure_policy,
         dataset=_dataset(env, params, num_train_examples),
         eval_dataset=_dataset(env, params, num_eval_examples),
         rubric=vf.Rubric(funcs=[episode_return]),

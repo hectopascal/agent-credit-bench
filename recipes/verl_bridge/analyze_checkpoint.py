@@ -1,9 +1,11 @@
 """Score credit estimators on real LLM rollouts from bridge episode logs.
 
 Reads episodes.jsonl written during training (or offline play), measures the
-empirical policy actually played, solves exact values under it, and reports
-every estimator's credit quality on the real trajectories. Only needs the
-core suite; verl estimator rows appear automatically when verl is installed.
+finite-sample Markov projection ``pi_hat(action | timestep, state)``, solves
+exact values for that fitted projection, and reports every estimator's credit
+quality on the logged trajectories. This is not an exact reconstruction of a
+history-conditioned LLM policy. Only needs the core suite; verl estimator rows
+appear automatically when verl is installed.
 
 Usage:
     python analyze_checkpoint.py episodes.jsonl [more.jsonl ...] \
@@ -11,12 +13,16 @@ Usage:
 
 --last N analyzes only the newest N episodes — the sliding window that
 approximates "the current checkpoint's policy" when one file spans a run.
+N must be a positive integer.
 """
 
 import argparse
 import csv
 import importlib.util
+import json
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from agent_credit_bench.estimators import (
     BatchCenteredBroadcast,
@@ -42,6 +48,17 @@ from agent_credit_bench.metrics import (
     spearman,
 )
 from agent_credit_bench.oracle import solve_exact_values
+
+
+def positive_integer_argument(value: str) -> int:
+    """argparse type for strictly positive window sizes."""
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("expected a positive integer") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("expected a positive integer")
+    return parsed
 
 
 def build_estimators() -> list:
@@ -86,10 +103,55 @@ def build_estimators() -> list:
     return estimators
 
 
+def environment_spec(records: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+    """Return the one environment specification shared by all records."""
+    if not records:
+        raise SystemExit("no episodes found")
+    env_names = {record["env"] for record in records}
+    if len(env_names) > 1:
+        raise SystemExit(f"episodes mix environments {sorted(env_names)}")
+    env_name = env_names.pop()
+
+    params_by_record: list[dict[str, Any]] = []
+    fingerprints: list[str] = []
+    for index, record in enumerate(records):
+        raw_params = record.get("env_params", {})
+        if raw_params is None:
+            raw_params = {}
+        if not isinstance(raw_params, Mapping):
+            raise SystemExit(
+                f"episode {index} has non-object env_params {raw_params!r}"
+            )
+        params = dict(raw_params)
+        try:
+            fingerprint = json.dumps(
+                params,
+                allow_nan=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        except (TypeError, ValueError) as error:
+            raise SystemExit(
+                f"episode {index} has invalid JSON env_params: {error}"
+            ) from error
+        params_by_record.append(params)
+        fingerprints.append(fingerprint)
+
+    env_params = params_by_record[0]
+    for index, fingerprint in enumerate(fingerprints[1:], start=1):
+        if fingerprint != fingerprints[0]:
+            raise SystemExit(
+                f"episodes mix env_params for {env_name!r}: "
+                f"record 0 has {env_params!r}, record {index} has "
+                f"{params_by_record[index]!r}"
+            )
+    return env_name, env_params
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", type=Path)
-    parser.add_argument("--last", type=int, default=None)
+    parser.add_argument("--last", type=positive_integer_argument, default=None)
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
 
@@ -98,11 +160,8 @@ def main() -> None:
         records = records[-args.last :]
     if not records:
         raise SystemExit("no episodes found")
-    env_names = {record["env"] for record in records}
-    if len(env_names) > 1:
-        raise SystemExit(f"episodes mix environments {sorted(env_names)}")
-    env_params = records[-1].get("env_params") or {}
-    mdp = make_env(env_names.pop(), **env_params)
+    env_name, env_params = environment_spec(records)
+    mdp = make_env(env_name, **env_params)
 
     turns = [turn for record in records for turn in record["turns"]]
     parsed_rate = sum(turn["parsed"] for turn in turns) / len(turns)
@@ -113,11 +172,15 @@ def main() -> None:
         f"parsed rate {parsed_rate:.3f}, mean return {mean_return:.3f}"
     )
     if parsed_rate < 0.9:
-        print("WARNING: low parsed rate — measured policy is mostly fallback")
+        print("WARNING: low parsed rate — projection includes fallback actions")
 
     policy = EmpiricalTabularPolicy.from_trajectories(trajectories)
     exact = solve_exact_values(mdp, policy)
-    print("\nempirical policy (visit counts):")
+    print(
+        "oracle target: exact DP for the finite-sample Markov projection "
+        "pi_hat(a | timestep, state), not the history-conditioned LLM policy"
+    )
+    print("\nfinite-sample Markov projection (visit counts):")
     for t in range(mdp.horizon):
         for state in mdp.states_at(t):
             count = policy.visit_count(t, state)

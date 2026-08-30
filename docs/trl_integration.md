@@ -5,7 +5,7 @@ advantage math of [TRL](https://github.com/huggingface/trl)'s `GRPOTrainer`
 and `RLOOTrainer`.
 
 ```bash
-pip install "agent-credit-bench[trl]"   # torch CPU is sufficient
+pip install "agent-credit-bench[trl]"   # pins TRL 1.12.0; torch CPU is sufficient
 python experiments/cross_framework_conformance.py
 pytest tests/test_trl_integration.py
 ```
@@ -17,9 +17,10 @@ inline in each trainer's `_generate_and_score_completions`. The integration
 therefore *transcribes* those lines (same ops, shapes, and epsilons), calls
 TRL's real `nanstd` helper for every std, and pins the transcription with
 **fingerprint tests** that assert the transcribed expressions still appear
-verbatim in the installed TRL source. A TRL release that changes the math
-fails the fingerprint instead of silently invalidating the numbers.
-Transcribed from TRL 1.12.0.
+verbatim in the installed TRL source. The integration is restricted to TRL
+1.12.0 both by the optional dependency and a runtime version check; another
+release fails closed instead of silently invalidating the numbers. Supporting
+a new version requires re-verifying the transcription and its fingerprints.
 
 Wrapped estimators: `TrlGRPO` (`scale_rewards` = `"group"` — TRL's default —
 `"batch"`, or `"none"`, the Dr. GRPO recommendation) and `TrlRLOO`
@@ -29,26 +30,31 @@ group, matching the verl integration's semantics; there `"batch"` and
 
 ## Findings
 
-1. **TRL's RLOO is bit-exactly verl's RLOO.** The default `RLOOTrainer`
+1. **For groups of at least two, TRL's and verl's RLOO numerically agree.**
+   The default `RLOOTrainer`
    advantage — leave-one-out baseline, no normalization — matches the
    suite's `BatchCenteredBroadcast` (and therefore verl's
-   `compute_rloo_outcome_advantage`) to 1e-9. Two frameworks, one estimator.
+   `compute_rloo_outcome_advantage`) within 1e-9 on the tested batches. At
+   group size one, TRL RLOO is rejected by this adapter while verl 0.9.0 has
+   a raw-score fallback.
 
 2. **TRL's GRPO agrees with verl on the std but not the epsilon.** Both
    divide by the Bessel-corrected sample std; TRL adds 1e-4 where verl adds
-   1e-6 (and OpenRLHF 1e-9). On the recovery diagnostic that is a 0.5864 vs
-   0.5863 difference — irrelevant for training, but exactly the kind of
-   implementation drift a conformance suite should pin down.
+   1e-6 (and OpenRLHF 1e-9). On the recovery diagnostic, verl produces
+   0.586440 and TRL 0.586307. The suite pins this implementation delta;
+   its downstream training impact is not tested here.
 
 3. **`nanstd` computes its Bessel correction in float32.** The
    `count / (count - 1)` factor divides two integer tensors, which torch
-   promotes to float32, so even float64 rewards carry ~1e-8 error. Harmless,
-   but it bounds how tightly TRL numbers can be compared across frameworks.
+   promotes to float32, so even float64 rewards carry ~1e-8 error. This bounds
+   how tightly TRL numbers can be compared across frameworks.
 
-4. **Every TRL outcome estimator praises repaired mistakes.** GRPO, Dr.
-   GRPO (`scale_rewards="none"`), and RLOO all assign positive credit to the
-   BAD action on 100% of recovered trajectories — the suite's headline
-   failure, reproduced on a third implementation.
+4. **Every tested TRL outcome estimator is positive on the selected repaired
+   path.** GRPO, Dr. GRPO (`scale_rewards="none"`), and RLOO all assign
+   positive credit to BAD on 100% of successful `BAD -> RECOVER`
+   trajectories. This is a conditional identification diagnostic, not an
+   expected-gradient claim: unsuccessful BAD trajectories provide the
+   offsetting negative centered credit.
 
 ## What this does and does not capture
 

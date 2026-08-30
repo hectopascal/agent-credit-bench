@@ -16,6 +16,12 @@ estimate() call, so a call is deterministic for a given constructor seed.
 import random
 from dataclasses import dataclass
 
+from agent_credit_bench._validation import (
+    validate_integer,
+    validate_positive_integer,
+    validated_policy_probabilities,
+    validated_transitions,
+)
 from agent_credit_bench.estimators.base import EstimatorContext
 from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.policy import Policy
@@ -37,9 +43,10 @@ def _rollout(
     for t in range(start_timestep, mdp.horizon):
         actions = list(mdp.actions(t, state))
         if action is None:
-            probs = policy.action_probabilities(t, state, actions)
+            probs = validated_policy_probabilities(policy, t, state, actions)
             action = rng.choices(actions, weights=[probs[a] for a in actions])[0]
         transitions = list(mdp.transitions(t, state, action))
+        validated_transitions(transitions, t, state, action)
         transition = rng.choices(
             transitions, weights=[tr.probability for tr in transitions]
         )[0]
@@ -56,6 +63,10 @@ class MonteCarloAdvantage:
     num_rollouts: int = 64
     seed: int = 0
     name: str = "monte_carlo_advantage"
+
+    def __post_init__(self) -> None:
+        validate_positive_integer(self.num_rollouts, "num_rollouts")
+        validate_integer(self.seed, "seed")
 
     def estimate(
         self, context: EstimatorContext

@@ -1,76 +1,126 @@
-# Turn-conditioned baselines buy value calibration, not direction correction
+# Turn-conditioned baselines: corrected variable-horizon result
 
-*The flagship variable-horizon result (plan.md §11.3, §16 item 3). Numbers
-from `results/variable_horizon_sweep.csv`; regenerate with
-`python experiments/variable_horizon_sweep.py --batch-size 500 --num-seeds 10`.*
+*This note supersedes the original batch-500-only interpretation. The current
+artifacts come from the full default sweep in
+`experiments/variable_horizon_sweep.py`: horizons {3, 5, 8}, group sizes
+{2, 4, 8, 32, 128, 500}, stop probabilities {0.2, 0.35, 0.5, 0.65, 0.8},
+seeds 0–199, `continue_reward=0`, and stop rewards made by repeating
+`(0, 2, 1, 3)` to each horizon. Summary and per-turn data are in
+`results/variable_horizon_sweep.csv` and
+`results/variable_horizon_turn_stats.csv`.*
 
 ## Question
 
-Turn-conditioned leave-one-out baselines (TurnLOO) compare a trajectory
-against peers *still active at that timestep*. Survival correlates with what
-a trajectory did, so a natural worry is that conditioning the baseline on
-survival biases the policy gradient. Does it — or does turn-conditioning only
-change credit values and variance?
+TurnLOO compares each trajectory with *other* trajectories still active at a
+timestep. Does this survival-conditioned baseline preserve the expected
+policy gradient? Separately, when does it improve credit-value calibration or
+finite-batch gradient error relative to one trajectory-level baseline?
 
-## Setup
+Those are three different questions: expected-gradient validity,
+identification of per-turn advantage values, and finite-batch mean-squared
+gradient error. The original write-up blurred them.
 
-`VariableHorizonEnv` with stop rewards (0, 2, 1, 3, 0): STOP/CONTINUE at every
-turn, forced STOP at the end, continuing has positive exact advantage at t=0
-and t=2 and negative at t=1 and t=3 under a 0.5 stop probability. Policies
-sweep stop probability over {0.2, 0.35, 0.5, 0.65, 0.8}; batches of 500
-trajectories, 10 seeds. Estimators: exact advantage (anchor),
-trajectory-centered LOO broadcast, TurnLOO. Gradient metrics use the exact
-closed-form g* under a tabular softmax parameterization (plan.md §10.7).
+## Audit finding: the old no-peer rule was wrong
 
-## Results
+The initial TurnLOO implementation emitted zero whenever a trajectory had no
+active peer. That is not a neutral baseline: it deletes the trajectory's
+policy-gradient contribution at that timestep. A batch of 500 made the event
+rare enough in the featured setting to produce a misleading empirical null.
 
-**1. No measurable gradient direction bias from turn-conditioning.**
-cosine(mean gradient, g*) at every stop probability:
+On the five-step environment with stop rewards `(0, 2, 1, 3, 0)`,
+`continue_reward=0`, and stop probability 0.5, a reproduction over seeds
+0–4,999 of the old rule found:
 
-| stop prob | oracle   | trajectory-centered | TurnLOO  |
-| --------- | -------- | ------------------- | -------- |
-| 0.2       | 0.999869 | 0.999856            | 0.999889 |
-| 0.35      | 0.999988 | 0.999959            | 0.999985 |
-| 0.5       | 0.999966 | 0.999803            | 0.999915 |
-| 0.65      | 0.999997 | 0.999933            | 0.999986 |
-| 0.8       | 0.999966 | 0.999890            | 0.999962 |
+| batch | cosine(mean gradient, exact) | relative mean-gradient error |
+| ----: | ---------------------------: | -----------------------: |
+| 2     | 0.974320                     | 0.225378                 |
+| 4     | 0.988629                     | 0.151427                 |
+| 8     | 0.995717                     | 0.092861                 |
 
-All three sit within sampling noise of each other; TurnLOO is if anything
-*closer* to g* than trajectory-centering at every point. The worried-about
-bias does not exist. This matches theory: the peer set active at t is
-independent of trajectory i's own actions, so the baseline stays a valid
-control variate — E[b · grad log pi] = 0 survives the conditioning.
+The earlier statement that TurnLOO introduced "no measurable gradient
+direction bias" across the tested problem was therefore too broad. It was a
+result for one large group size, not validation of the estimator's edge-case
+contract.
 
-**2. Turn-conditioning removes large per-turn credit-value bias.**
-At stop probability 0.5, trajectory-centered credit is biased by up to
-±0.8 per timestep (+0.80 at t=1, −0.80 at t=4; see
-`results/variable_horizon_turn_bias.png`): trajectories alive at late
-timesteps are a return-selected subpopulation, and a baseline computed over
-the *whole* batch mis-centers them. TurnLOO's per-turn bias is below 0.05
-everywhere — its baseline is the conditional mean of exactly that
-subpopulation.
+The legacy rule is retained only inside
+`experiments/turn_loo_fallback_audit.py`; its 5,000-seed output is committed
+as `results/turn_loo_fallback_audit.csv` so these before/after numbers remain
+reproducible after the production estimator was fixed.
 
-**3. A consistent but modest variance reduction.**
-TurnLOO's gradient variance is 3–20% below trajectory-centering at every stop
-probability (e.g. 0.00153 vs 0.00178 at p=0.5), while the oracle sits 3–8x
-lower still.
+## Correction and expected-gradient result
 
-## Interpretation
+When no peer is active, the corrected estimator uses a zero baseline and
+therefore emits the trajectory's raw return. This is ordinary REINFORCE for
+that sample; it preserves the contribution instead of replacing it with zero.
 
-Turn-conditioning is *value* calibration, not *direction* correction. If all
-you consume is the policy-gradient direction, trajectory-centering was never
-biased and turn-conditioning buys only a modest variance improvement. But any
-consumer that reads credit values directly — advantage-thresholded filtering,
-step-level data selection, per-turn reward shaping, or analysis that
-interprets per-turn credit — inherits the ±0.8 per-turn distortion under
-variable termination, and turn-conditioning removes it. This reframes the
-length-bias discussion around group-relative methods: under variable horizon
-the pathology of a whole-batch baseline shows up in credit values (and
-therefore in anything value-consuming), not in the expected gradient.
+For the peer-present case, the baseline uses only other independently sampled
+trajectories. Whether those peers survived to timestep `t` does not depend on
+the current trajectory's action, so it remains an action-independent control
+variate for that trajectory. Exact enumeration over every possible trajectory
+batch in the five-step environment verifies
+`E[estimated gradient] = exact gradient` for batch sizes 1, 2, and 3 to an
+absolute tolerance of 1e-12.
 
-## Honest scope
+The corrected 5,000-seed reproduction at horizon 5 and stop probability 0.5
+is consistent with that exact result:
 
-This is a clean, exactly-measured result on a five-step tabular MDP — a
-workshop-note-sized claim, not a paper (scope rule 8). What it settles is the
-mechanism; whether the value-bias term matters at LLM scale depends on how
-much of the training pipeline consumes credit values rather than gradients.
+| batch | mean-gradient cosine | relative mean-gradient error | gradient variance |
+| ----: | -------------------: | -----------------------: | ----------------: |
+| 2     | 0.999876             | 0.019731                 | 1.125613          |
+| 4     | 0.999947             | 0.010308                 | 0.367836          |
+| 8     | 0.999966             | 0.009006                 | 0.142420          |
+
+The residual mean-gradient errors are Monte Carlo estimation error, not an
+exact bias calculation; the enumeration is the stronger validity check.
+
+## Value calibration still improves at large groups
+
+The useful identification result survives. In the committed 200-seed sweep at
+horizon 5, batch 500, and stop probability 0.5, the whole-batch trajectory
+baseline has per-turn mean credit error as high as +0.813 at timestep 1 and
+−0.809 at timestep 4. TurnLOO's largest absolute per-turn error in that
+configuration is 0.0134.
+
+The reason is selection by survival. Trajectories active late in an episode
+are not representative of the whole batch, so a whole-batch mean return
+mis-centers their credit. TurnLOO estimates the mean return within the active
+peer population. This matters when downstream logic consumes credit values
+directly, such as advantage-thresholded filtering, step-level data selection,
+or diagnostic interpretation.
+
+## Finite-batch gradient error has a crossover
+
+Unbiasedness does not imply lowest variance. The raw-return fallback is noisy
+when tiny groups frequently have no peer, and corrected TurnLOO has slightly
+higher normalized gradient MSE than trajectory-centering at small groups. In
+the 5,000-seed audit, TurnLOO versus trajectory-centered normalized MSE is
+3.0659 versus 2.9637 at batch 2, 1.0019 versus 0.8859 at batch 4, and 0.3879
+versus 0.3597 at batch 8.
+
+In the committed 200-seed sweep at horizon 5 and stop probability 0.5, the
+ordering reverses as the active peer pool grows:
+
+| batch | trajectory-centered MSE | TurnLOO MSE |
+| ----: | ----------------------: | ----------: |
+| 32    | 0.082830                | 0.073787    |
+| 128   | 0.018318                | 0.014509    |
+| 500   | 0.004497                | 0.003270    |
+
+The crossover is not universal: it varies with horizon, stop probability, and
+group size. `results/variable_horizon_frontier.png` plots the complete sweep;
+the CSV, rather than one featured slice, is the evidence for a particular
+configuration.
+
+## Corrected interpretation
+
+Turn-conditioning can buy substantially better per-turn value calibration,
+and with enough active peers it can also reduce gradient MSE. It is not a
+blanket variance improvement. The raw-return fallback (a zero baseline) is a
+sufficient action-independent choice for expected-gradient validity, but it
+is not unique; any fallback baseline must not depend on the sampled action.
+The practical bias-variance tradeoff depends on the survival distribution and
+group size.
+
+This remains a result on small tabular MDPs. It validates the mechanism and
+provides regression tests for estimator implementations; it does not establish
+that the same crossover materially affects an LLM training run.

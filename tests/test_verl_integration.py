@@ -5,11 +5,13 @@ default environment stays green. Run them with the [verl] extra installed;
 CI has a dedicated job for it.
 """
 
+import asyncio
 import importlib
 import importlib.util
 import statistics
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -72,13 +74,29 @@ def test_pack_trajectories_rejects_empty_batch() -> None:
 
 
 def test_verl_rloo_matches_batch_centered_exactly() -> None:
-    """verl's RLOO is algebraically our leave-one-out centering."""
+    """For n >= 2, verl's RLOO is our leave-one-out centering."""
     context = variable_horizon_context()
     verl_credits = VerlRLOO().estimate(context)
     ours = BatchCenteredBroadcast().estimate(context)
     for verl_row, our_row in zip(verl_credits, ours, strict=True):
         for verl_credit, our_credit in zip(verl_row, our_row, strict=True):
             assert verl_credit == pytest.approx(our_credit, abs=1e-9)
+
+
+def test_verl_singleton_outcome_fallback_is_raw_score() -> None:
+    """Pin verl 0.9.0's nonzero singleton branch for GRPO and RLOO."""
+    import torch
+
+    context = variable_horizon_context(batch_size=1)
+    expected = context.trajectories[0].total_return
+    for estimator in (VerlGRPO(norm_adv_by_std=False), VerlRLOO()):
+        (credits,) = estimator.estimate(context)
+        assert credits == pytest.approx((expected,) * len(credits), abs=1e-9)
+    (normalized,) = VerlGRPO().estimate(context)
+    singleton_scale = float(torch.tensor(1.0) + torch.tensor(1e-6))
+    assert normalized == pytest.approx(
+        (expected / singleton_scale,) * len(normalized), abs=1e-9
+    )
 
 
 def test_verl_grpo_uses_sample_std_not_population_std() -> None:
@@ -106,8 +124,8 @@ def test_verl_dr_grpo_is_mean_centering_only() -> None:
             assert credit == pytest.approx(ret - mean, abs=1e-9)
 
 
-def test_verl_outcome_estimators_praise_bad_on_recovery() -> None:
-    """The suite's headline failure, reproduced on verl's real code."""
+def test_verl_outcome_estimators_are_positive_on_selected_recovery() -> None:
+    """Check the conditional successful-repair credit diagnostic."""
     context = recovery_context()
     recovered = [
         i
@@ -121,8 +139,8 @@ def test_verl_outcome_estimators_praise_bad_on_recovery() -> None:
     for estimator in (VerlGRPO(), VerlRLOO(), VerlReinforcePlusPlus()):
         credits = estimator.estimate(context)
         for i in recovered:
-            assert credits[i][0] > 0, f"{estimator.name} should praise BAD"
-            assert credits[i][1] > 0, f"{estimator.name} should praise RECOVER"
+            assert credits[i][0] > 0, f"{estimator.name}: expected BAD > 0"
+            assert credits[i][1] > 0, f"{estimator.name}: expected RECOVER > 0"
 
 
 def test_verl_gae_perfect_critic_lambda_zero_distractor_credit_is_constant() -> None:
@@ -164,6 +182,37 @@ def test_bridge_agent_loop_registers_matching_yaml() -> None:
     assert entry["_target_"] == configured[0]._target_
 
 
+def test_bridge_agent_loop_drops_reward_when_terminal_reply_is_truncated() -> None:
+    """An action sliced out of response_ids must not retain its reward."""
+    recipe_dir = Path(__file__).resolve().parent.parent / "recipes" / "verl_bridge"
+    sys.path.insert(0, str(recipe_dir))
+    try:
+        module = importlib.import_module("bridge_agent_loop")
+    finally:
+        sys.path.remove(str(recipe_dir))
+
+    loop = object.__new__(module.CreditBenchBridgeLoop)
+    loop.response_length = 1
+    loop.turn_separator = []
+
+    async def apply_chat_template(_messages, **_kwargs):
+        return [101]
+
+    async def generate(**_kwargs):
+        # Decodes to terminal GOOD, but both tokens cannot fit in the one-token
+        # response budget, so the environment action must not be executed.
+        return SimpleNamespace(token_ids=[1, 2])
+
+    loop.apply_chat_template = apply_chat_template
+    loop.server_manager = SimpleNamespace(generate=generate)
+    loop.tokenizer = SimpleNamespace(decode=lambda *_args, **_kwargs: "GOOD")
+
+    output = asyncio.run(loop.run({}))
+    assert output.response_ids == [1]
+    assert output.reward_score == 0.0
+    assert output.num_turns == 1
+
+
 def test_run_benchmark_accepts_verl_estimator() -> None:
     result = run_benchmark(
         mdp=VariableHorizonEnv(),
@@ -172,5 +221,5 @@ def test_run_benchmark_accepts_verl_estimator() -> None:
         batch_size=200,
         seeds=range(2),
     )
-    assert result.gradient_direction_bias > 0.99
+    assert result.mean_gradient_cosine > 0.99
     assert all(m.gradient_cosine > 0.9 for m in result.seed_metrics)

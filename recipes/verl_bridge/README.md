@@ -1,11 +1,13 @@
-# verl bridge: exact credit ground truth inside a real training run
+# verl bridge: projected credit targets inside a real training run
 
 This recipe runs the suite's environments *inside* real verl training, as
 multi-turn chat games. The underlying MDP stays known, so real rollouts from
-a real model remain exactly scoreable: measure the empirical policy the
-model actually played, solve exact values under it, and every suite metric
-applies to genuine training data — no Monte-Carlo approximation, no
-simulated policies.
+a real model can be reduced to a finite-sample tabular Markov projection,
+`pi_hat(action | timestep, state)`. Dynamic programming then gives exact
+values for that fitted projection, and every suite metric applies to the
+logged sample without Monte Carlo value estimation. This is not exact ground
+truth for a history-conditioned LLM policy: the projection collapses prompt
+and conversation history and its action frequencies have sampling error.
 
 ## Files
 
@@ -18,10 +20,11 @@ simulated policies.
 - `make_dataset.py` — builds the train/val parquet rows that select this
   agent loop (needs pandas + pyarrow, which a verl install provides).
 - `analyze_checkpoint.py` — reads the episode log, reports the empirical
-  policy, parsed-rate, and every estimator's credit quality (RMSE, centered
-  RMSE, sign accuracy, leakage, Spearman) against exact advantages under
-  the measured policy. Core-suite only; verl estimator rows appear when
-  verl is installed.
+  Markov projection, parsed-rate, and every estimator's credit quality (RMSE,
+  centered RMSE, sign accuracy, leakage, Spearman) against exact advantages
+  for the fitted projection. It rejects logs that mix environments or
+  `env_params`. Core-suite only; verl estimator rows appear when verl is
+  installed.
 
 The framework-free machinery (verbalization, parsing, `BridgeSession`,
 `EmpiricalTabularPolicy`) lives in the installed package at
@@ -29,14 +32,26 @@ The framework-free machinery (verbalization, parsing, `BridgeSession`,
 with any `messages -> reply` callable, so the same analysis works on
 episodes from an API model or a scripted bot with no verl at all.
 
-## Why exactness survives an imperfect model
+## What is exact, and what is projected
 
-The text-to-action mapping (including the deterministic fallback for
-unparseable replies) is part of the environment: whatever gets *executed*
-defines the effective policy, and the oracle is exact for that policy.
-`analyze_checkpoint.py` reports the parsed-rate; if it is low, the measured
-policy is mostly the fallback and the prompt needs work, but the numbers
-are still exact for what was actually played.
+The text-to-action mapping is part of the environment, so every executed
+action—including a fallback action—is known exactly in the log. The analyzer
+counts those actions at each `(timestep, state)` and solves the resulting
+tabular policy exactly. An LLM can nevertheless choose differently after two
+histories that lead to the same MDP state. Those histories are merged by the
+projection, so the resulting advantages are not exact values for the original
+history-conditioned policy.
+
+Unparseable replies use `parse_failure_policy="minimum_return"` by default.
+Backward induction chooses the action with the lowest expected episode return
+when later fallback choices also minimize return; declared action order breaks
+exact ties. Thus malformed output in `RecoveryEnv` selects `BAD`, then
+`GIVE_UP`, rather than receiving reward through the formerly favorable first
+action. For strict evaluation, pass `parse_failure_policy="raise"` to
+`play_episode` or `BridgeSession`; use
+`make_dataset.py --parse-failure-policy raise` for the verl recipe. The chosen
+action, parse status, and failure policy are logged, so the behavior is
+reproducible.
 
 ## Smoke test without a GPU
 
@@ -56,6 +71,9 @@ with open("episodes.jsonl", "w") as f:
 ```bash
 python analyze_checkpoint.py episodes.jsonl
 ```
+
+Do not combine files produced with different `env_params`; the analyzer now
+fails closed instead of solving all trajectories against the last record's MDP.
 
 ## Training run (template)
 
@@ -100,27 +118,31 @@ python analyze_checkpoint.py episodes/run1.jsonl --last 2000
 ```
 
 `--last N` windows the newest episodes, approximating "the current
-checkpoint's policy" as the log grows. For per-checkpoint precision, point
+checkpoint's policy" as the log grows; `N` must be positive. For
+per-checkpoint precision, point
 `CREDIT_BENCH_EPISODES_PATH` at a fresh file per eval, or slice the log by
 line ranges.
 
 ## What to look for
 
-- **Recovery env + GRPO:** the conformance suite predicts positive credit
-  on BAD for 100% of repaired episodes. Watch the empirical
-  `pi(BAD | s0)` trajectory across windows: broadcast credit predicts a
-  slower fall (or transient rise) than an oracle-informed signal would give.
-- **Parsed-rate** should sit near 1.0 after the first few steps; models
-  learn the format fast, and the fallback keeps early noise well-defined.
+- **Recovery env + GRPO:** verify the conditional diagnostic directly: BAD
+  should receive positive credit within successful repaired episodes, while
+  all-BAD aggregates and gradient metrics must be examined separately. The
+  selected-path sign alone does not predict the direction of policy change.
+- **Parsed-rate** should sit near 1.0 after the first few steps; a low rate
+  means the projection contains substantial environment-selected fallback
+  behavior rather than model-selected actions.
 - **Estimator table on real data:** the tabular findings (RLOO ≡
   batch-centering, GRPO ≈ scaled version of it, GAE-with-critic sign
-  behavior) should reproduce on real LLM trajectories — that
-  reproduction is the external-validity evidence this recipe exists for.
+  behavior) can be checked on real LLM trajectories. Agreement supports those
+  findings for the fitted Markov projection; it does not establish an exact
+  oracle for history-conditioned behavior.
 
 ## Validation status
 
-Tested locally (no GPU): all bridge machinery (session, parsing, fallback,
-serialization, empirical policy — `tests/test_bridge.py`), the analyzer in
+Tested locally (no GPU): all bridge machinery (session, parsing,
+minimum-return fallback, serialization, Markov projection —
+`tests/test_bridge.py`), analyzer environment-spec validation, the analyzer in
 both a bare and a verl environment, and that the agent loop imports and
 registers under verl 0.9.0 exactly as `agent_loops.yaml` declares
 (`tests/test_verl_integration.py`). The token bookkeeping mirrors verl's own

@@ -134,8 +134,8 @@ def test_trl_rloo_rejects_single_trajectory() -> None:
         TrlRLOO().estimate(context)
 
 
-def test_trl_outcome_estimators_praise_bad_on_recovery() -> None:
-    """The suite's headline failure, reproduced on TRL's advantage math."""
+def test_trl_outcome_estimators_are_positive_on_selected_recovery() -> None:
+    """Check the conditional successful-repair credit diagnostic."""
     context = recovery_context()
     recovered = [
         i
@@ -149,8 +149,8 @@ def test_trl_outcome_estimators_praise_bad_on_recovery() -> None:
     for estimator in (TrlGRPO(), TrlRLOO(), TrlRLOO(normalize_advantages=True)):
         credits = estimator.estimate(context)
         for i in recovered:
-            assert credits[i][0] > 0, f"{estimator.name} should praise BAD"
-            assert credits[i][1] > 0, f"{estimator.name} should praise RECOVER"
+            assert credits[i][0] > 0, f"{estimator.name}: expected BAD > 0"
+            assert credits[i][1] > 0, f"{estimator.name}: expected RECOVER > 0"
 
 
 def test_run_benchmark_accepts_trl_estimator() -> None:
@@ -161,5 +161,5 @@ def test_run_benchmark_accepts_trl_estimator() -> None:
         batch_size=200,
         seeds=range(2),
     )
-    assert result.gradient_direction_bias > 0.99
+    assert result.mean_gradient_cosine > 0.99
     assert all(m.gradient_cosine > 0.9 for m in result.seed_metrics)

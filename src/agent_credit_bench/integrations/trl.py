@@ -22,17 +22,39 @@ Requires the optional extra::
 
     pip install "agent-credit-bench[trl]"
 
-Transcribed from and tested against TRL 1.12.0 (torch CPU is sufficient).
+Transcribed from and restricted to TRL 1.12.0 (torch CPU is sufficient).
 """
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from agent_credit_bench.estimators.base import EstimatorContext
 
+_SUPPORTED_TRL_VERSION = "1.12.0"
+
+
+def _require_supported_trl_version() -> None:
+    """Fail closed when the installed TRL may not match the transcription."""
+    try:
+        installed = version("trl")
+    except PackageNotFoundError as exc:
+        raise ImportError(
+            "trl is required for agent_credit_bench.integrations.trl — "
+            'install it with: pip install "agent-credit-bench[trl]"'
+        ) from exc
+    if installed != _SUPPORTED_TRL_VERSION:
+        raise RuntimeError(
+            "agent_credit_bench.integrations.trl transcribes TRL "
+            f"{_SUPPORTED_TRL_VERSION}, but {installed} is installed; install "
+            f"trl=={_SUPPORTED_TRL_VERSION} or re-verify and update the "
+            "transcription fingerprints"
+        )
+
 
 def _trl_parts() -> tuple[Any, Any]:
     """Return (torch, trl.trainer.utils.nanstd), or raise clearly."""
+    _require_supported_trl_version()
     try:
         import torch
         from trl.trainer.utils import nanstd

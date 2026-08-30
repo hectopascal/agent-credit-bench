@@ -1,7 +1,7 @@
 """GRPO-style normalized group-relative baseline (plan.md §16, item 1).
 
-Faithful reimplementation of the published group-advantage formula
-(DeepSeekMath / TRL GRPOTrainer):
+Population-standard-deviation transcription of the published DeepSeekMath
+group-advantage formula:
 
     credit_i_t = (return_i - mean(returns)) / (pstdev(returns) + epsilon)
 
@@ -11,10 +11,11 @@ deviation. Note the normalization makes the output scale-free, so its RMSE
 against exact advantage is not meaningful on its own — the centered/gradient
 metrics are the fair ones (plan.md §10.8).
 
-A batch whose returns are all equal (std = 0) gets zero credit everywhere,
-matching library behavior. Labeled "-style" because it reproduces the
-formula, not the library code path; use TrajectoryReturnAdapter to score the
-actual library function.
+A batch whose returns are all equal (std = 0) gets zero credit everywhere in
+this implementation. Library conventions differ in sample versus population
+standard deviation, epsilon, and singleton behavior. Labeled "-style" because
+it reproduces the broad formula, not a library code path; use the versioned
+integrations to score actual framework implementations.
 """
 
 import statistics

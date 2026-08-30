@@ -13,25 +13,34 @@ Packing follows the pipeline's own semantics. OpenRLHF's estimator interface
 consumes one scalar reward per sequence (``Experience.rewards`` is ``(B,)``;
 ``compute_reward`` scatters it onto the last unmasked cell), so each
 trajectory contributes its total return, placed on its final turn — with one
-tensor cell per turn, as in the verl integration. For every suite
-environment this coincides with the per-turn reward structure, because suite
-rewards are only ever emitted on the turn that ends the episode. KL is zero,
-length penalties are disabled, and the whole batch is one group
+tensor cell per turn, as in the verl integration. This coincides with the
+default benchmark configurations, whose rewards are only emitted on the turn
+that ends the episode. KL is zero, length penalties are disabled, and the
+whole batch is one group
 (``n_samples_per_prompt`` = batch size).
 
-One caveat the tests inherit: the batch-whitening block casts advantages to
-float32 before computing the mean/rstd, so whitened estimators (gae,
-reinforce, reinforce_baseline) carry ~1e-7 float32 noise even on float64
-input. Unwhitened ones (rloo, group_norm, dr_grpo) are exact to rounding.
+Trajectories with nonzero rewards before the final turn are rejected
+for recursive estimators (GAE and ``reinforce``), because moving those rewards
+to the final cell would change the return-to-go. Group-relative outcome
+estimators intentionally consume only the scalar total return.
 
-OpenRLHF ships Linux-only wheels; install the extra on Linux (CI runs it)::
+One cross-framework caveat the tests pin down: this pipeline's batch-whitening
+block uses population variance, whereas verl's ``masked_whiten`` uses the
+Bessel-corrected sample variance. That normalization convention is the main
+source of the roughly 1e-4 OpenRLHF/verl gaps in the committed recovery
+results. OpenRLHF also casts advantages to float32 while computing the
+mean/rstd, which adds smaller rounding noise even on float64 input.
+Unwhitened estimators (rloo, group_norm, dr_grpo) are exact to rounding.
 
-    pip install "agent-credit-bench[openrlhf]"
-
-Tested against openrlhf 0.11.0 (torch CPU is sufficient).
+OpenRLHF ships Linux-only wheels, and its normal dependency set includes CUDA
+packages. For the validated CPU-only scoring route (OpenRLHF 0.11.0 installed
+with ``--no-deps``, explicit requirements, and guarded import stubs), follow
+``docs/openrlhf_integration.md``. The ``[openrlhf]`` extra is only a version
+pin for environments that can satisfy OpenRLHF's full dependency set.
 """
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from types import SimpleNamespace
 from typing import Any
 
@@ -40,10 +49,30 @@ from agent_credit_bench.oracle import solve_exact_values
 
 _GROUP_ESTIMATORS = ("rloo", "group_norm", "dr_grpo", "reinforce_baseline")
 _OUTCOME_ESTIMATORS = _GROUP_ESTIMATORS + ("reinforce",)
+_SUPPORTED_OPENRLHF_VERSION = "0.11.0"
+
+
+def _require_supported_openrlhf_version() -> None:
+    """Fail closed when OpenRLHF's private pipeline API may have changed."""
+    try:
+        installed = version("openrlhf")
+    except PackageNotFoundError as exc:
+        raise ImportError(
+            "openrlhf is required for this integration; see "
+            "docs/openrlhf_integration.md for the Linux CPU recipe"
+        ) from exc
+    if installed != _SUPPORTED_OPENRLHF_VERSION:
+        raise RuntimeError(
+            "agent_credit_bench.integrations.openrlhf targets OpenRLHF "
+            f"{_SUPPORTED_OPENRLHF_VERSION}, but {installed} is installed; "
+            f"install openrlhf=={_SUPPORTED_OPENRLHF_VERSION} or re-validate "
+            "the adapter"
+        )
 
 
 def _openrlhf_parts() -> tuple[Any, Any, Any]:
     """Return (torch, RemoteExperienceMaker, Experience), or raise clearly."""
+    _require_supported_openrlhf_version()
     try:
         import torch
         from openrlhf.trainer.ppo_utils.experience import Experience
@@ -52,9 +81,8 @@ def _openrlhf_parts() -> tuple[Any, Any, Any]:
         )
     except ImportError as exc:
         raise ImportError(
-            "openrlhf is required for agent_credit_bench.integrations.openrlhf "
-            "(Linux-only wheels) — install it with: "
-            'pip install "agent-credit-bench[openrlhf]"'
+            "OpenRLHF 0.11.0's advantage pipeline could not be imported; "
+            "see docs/openrlhf_integration.md for the Linux CPU recipe"
         ) from exc
     return torch, RemoteExperienceMaker, Experience
 
@@ -88,6 +116,28 @@ def _stub_self(estimator: str, gamma: float, lam: float, no_std_norm: bool) -> A
         kl_ctl=SimpleNamespace(value=0.0),
         advantage_estimator=estimator,
     )
+
+
+def _validate_recursive_reward_packing(context: EstimatorContext) -> None:
+    """Reject reward timing that OpenRLHF's scalar interface would erase.
+
+    OpenRLHF accepts one reward per sequence and places it on the last live
+    cell. That exactly represents recursive turn-level estimators only when
+    all earlier cells have zero environment reward.
+    """
+    for trajectory_index, trajectory in enumerate(context.trajectories):
+        if not trajectory.steps:
+            raise ValueError(
+                f"trajectory {trajectory_index} has no steps and cannot be packed"
+            )
+        for step in trajectory.steps[:-1]:
+            if step.reward != 0.0:
+                raise ValueError(
+                    "OpenRLHF's scalar reward interface cannot represent "
+                    "nonzero rewards before the final turn for recursive "
+                    f"estimators (trajectory {trajectory_index}, "
+                    f"timestep {step.timestep})"
+                )
 
 
 def _run_pipeline(
@@ -180,6 +230,8 @@ class OpenRLHFOutcome:
     ) -> tuple[tuple[float, ...], ...]:
         if self.estimator in _GROUP_ESTIMATORS and len(context.trajectories) < 2:
             raise ValueError(f"{self.name} needs at least two trajectories")
+        if self.estimator == "reinforce":
+            _validate_recursive_reward_packing(context)
         return _run_pipeline(
             context,
             estimator=self.estimator,
@@ -195,10 +247,13 @@ class OpenRLHFGAE:
     """OpenRLHF's GAE (``get_advantages_and_returns``) with a controlled critic.
 
     Same contract as the verl integration's VerlGAE: ``critic="exact"``
-    feeds the oracle's V^pi, ``critic="zero"`` feeds zeros; at OpenRLHF's
-    default ``lambd=1`` even a perfect critic only sets the baseline. The
-    pipeline batch-whitens GAE advantages (in float32 — see module note);
-    ``no_std_norm=True`` keeps their mean-centering but skips the rescale.
+    feeds the oracle's undiscounted V^pi and therefore requires ``gamma=1``;
+    ``critic="zero"`` feeds zeros and permits other gamma values. At
+    OpenRLHF's default ``lambd=1`` even a perfect critic only sets the
+    baseline. The pipeline batch-whitens GAE advantages (in float32 — see
+    module note); ``no_std_norm=True`` keeps their mean-centering but skips
+    the rescale. OpenRLHF's whitening uses population variance; this differs
+    from verl's Bessel-corrected ``masked_whiten`` convention.
     """
 
     gamma: float = 1.0
@@ -209,6 +264,11 @@ class OpenRLHFGAE:
     def __post_init__(self) -> None:
         if self.critic not in ("exact", "zero"):
             raise ValueError(f"critic must be 'exact' or 'zero', got {self.critic!r}")
+        if self.critic == "exact" and self.gamma != 1.0:
+            raise ValueError(
+                "critic='exact' is only available with gamma=1.0 because "
+                "the suite oracle is undiscounted"
+            )
 
     @property
     def name(self) -> str:
@@ -217,6 +277,7 @@ class OpenRLHFGAE:
     def estimate(
         self, context: EstimatorContext
     ) -> tuple[tuple[float, ...], ...]:
+        _validate_recursive_reward_packing(context)
         return _run_pipeline(
             context,
             estimator="gae",

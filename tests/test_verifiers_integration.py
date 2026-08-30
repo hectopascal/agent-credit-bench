@@ -139,15 +139,15 @@ def test_rollout_bad_recover_full_episode(recipe, tmp_path) -> None:
     assert all(turn["parsed"] for turn in record["turns"])
 
 
-def test_rollout_unparseable_reply_uses_fallback(recipe) -> None:
+def test_rollout_unparseable_reply_uses_minimum_return_fallback(recipe) -> None:
     env = recipe.load_environment(
         env="recovery", num_train_examples=1, num_eval_examples=1
     )
-    state = run_rollout(env, ["hmm, let me think..."])
+    state = run_rollout(env, ["hmm, let me think...", "still undecided"])
     session = state["credit_bench_session"]
-    # fallback is actions[0] at (t=0, s0), which is GOOD -> episode over
-    assert [t.step.action for t in session.turns] == ["GOOD"]
-    assert not session.turns[0].parsed
+    assert [t.step.action for t in session.turns] == ["BAD", "GIVE_UP"]
+    assert not any(turn.parsed for turn in session.turns)
+    assert session.total_return == 0.0
     assert state["is_completed"]
 
 

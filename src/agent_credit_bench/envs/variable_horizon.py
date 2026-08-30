@@ -14,6 +14,7 @@ tests/test_variable_horizon.py.
 
 from dataclasses import dataclass
 
+from agent_credit_bench._validation import validate_probability
 from agent_credit_bench.types import Action, State, Transition
 
 
@@ -22,6 +23,9 @@ class StopProbabilityPolicy:
     """Stops with fixed probability wherever stopping is optional."""
 
     stop_probability: float
+
+    def __post_init__(self) -> None:
+        validate_probability(self.stop_probability, "stop_probability")
 
     def action_probabilities(self, timestep, state, actions):
         if list(actions) == ["STOP"]:

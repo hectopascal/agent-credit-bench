@@ -17,6 +17,10 @@ for every t >= 1. Requires horizon >= 2.
 
 from dataclasses import dataclass
 
+from agent_credit_bench._validation import (
+    validate_positive_integer,
+    validate_probability,
+)
 from agent_credit_bench.types import Action, State, Transition
 
 
@@ -28,8 +32,19 @@ class DelayedEffectEnv:
     num_distractor_actions: int = 2
 
     def __post_init__(self) -> None:
+        if isinstance(self.horizon, bool) or not isinstance(self.horizon, int):
+            raise TypeError("horizon must be an integer")
         if self.horizon < 2:
             raise ValueError("DelayedEffectEnv requires horizon >= 2")
+        validate_probability(
+            self.good_success_probability, "good_success_probability"
+        )
+        validate_probability(
+            self.bad_success_probability, "bad_success_probability"
+        )
+        validate_positive_integer(
+            self.num_distractor_actions, "num_distractor_actions"
+        )
 
     @property
     def initial_state(self) -> State:

@@ -5,6 +5,12 @@ Standard-library random only — the suite keeps zero runtime dependencies.
 
 import random
 
+from agent_credit_bench._validation import (
+    validate_integer,
+    validate_positive_integer,
+    validated_policy_probabilities,
+    validated_transitions,
+)
 from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.policy import Policy
 from agent_credit_bench.types import Step, Trajectory
@@ -23,6 +29,9 @@ def sample_trajectories(
     (t=0, mdp.initial_state) and stops after a terminated transition or when
     the horizon is reached.
     """
+    validate_positive_integer(batch_size, "batch_size")
+    validate_positive_integer(mdp.horizon, "mdp.horizon")
+    validate_integer(seed, "seed")
     rng = random.Random(seed)
     trajectories: list[Trajectory] = []
     for _ in range(batch_size):
@@ -30,10 +39,11 @@ def sample_trajectories(
         state = mdp.initial_state
         for t in range(mdp.horizon):
             actions = list(mdp.actions(t, state))
-            probs = policy.action_probabilities(t, state, actions)
+            probs = validated_policy_probabilities(policy, t, state, actions)
             action = rng.choices(actions, weights=[probs[a] for a in actions])[0]
 
             transitions = list(mdp.transitions(t, state, action))
+            validated_transitions(transitions, t, state, action)
             transition = rng.choices(
                 transitions, weights=[tr.probability for tr in transitions]
             )[0]

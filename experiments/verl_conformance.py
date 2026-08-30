@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import csv
+from importlib.metadata import version
 from pathlib import Path
 
 from agent_credit_bench.envs.recovery import RecoveryEnv
@@ -43,6 +44,8 @@ def main() -> None:
     parser.add_argument("--recover-success", type=float, default=1.0)
     parser.add_argument("--out", type=Path, default=Path("results/verl_recovery.csv"))
     args = parser.parse_args()
+    if args.batch_size < 2:
+        raise SystemExit("--batch-size must be at least 2")
 
     env = RecoveryEnv(recover_success_probability=args.recover_success)
     policy = UniformPolicy()
@@ -57,6 +60,8 @@ def main() -> None:
         and trajectory.steps[1].action == "RECOVER"
         and trajectory.total_return == 1.0
     ]
+    if not recovered:
+        raise RuntimeError("sample contained no successful BAD -> RECOVER path")
     print(f"{len(recovered)} successful BAD -> RECOVER trajectories")
 
     rows = []
@@ -66,10 +71,25 @@ def main() -> None:
         recover = [credits[i][1] for i in recovered]
         rows.append(
             {
+                "environment": "recovery",
+                "recover_success_probability": args.recover_success,
+                "batch_size": args.batch_size,
+                "seed": args.seed,
+                "num_recovered": len(recovered),
+                "framework": (
+                    "agent-credit-bench"
+                    if estimator.name == "oracle_advantage"
+                    else "verl"
+                ),
+                "framework_version": (
+                    "source-tree"
+                    if estimator.name == "oracle_advantage"
+                    else version("verl")
+                ),
                 "estimator": estimator.name,
                 "mean_credit_bad": sum(bad) / len(bad),
                 "mean_credit_recover": sum(recover) / len(recover),
-                "both_praised_fraction": sum(
+                "both_positive_fraction_on_recovered": sum(
                     b > 0 and r > 0 for b, r in zip(bad, recover, strict=True)
                 )
                 / len(bad),
@@ -80,12 +100,15 @@ def main() -> None:
     for row in rows:
         print(
             f"{row['estimator']:<28}{row['mean_credit_bad']:>14.4f}"
-            f"{row['mean_credit_recover']:>17.4f}{row['both_praised_fraction']:>9.2f}"
+            f"{row['mean_credit_recover']:>17.4f}"
+            f"{row['both_positive_fraction_on_recovered']:>9.2f}"
         )
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(
+            handle, fieldnames=list(rows[0]), lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
     print(f"wrote {args.out}")

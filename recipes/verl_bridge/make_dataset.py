@@ -16,7 +16,12 @@ from pathlib import Path
 import pandas as pd
 
 
-def rows(n: int, env: str, env_params: dict) -> pd.DataFrame:
+def rows(
+    n: int,
+    env: str,
+    env_params: dict,
+    parse_failure_policy: str = "minimum_return",
+) -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
@@ -24,7 +29,11 @@ def rows(n: int, env: str, env_params: dict) -> pd.DataFrame:
                 "agent_name": "credit_bench_bridge",
                 "data_source": "agent_credit_bench",
                 "reward_model": {"style": "rule", "ground_truth": ""},
-                "extra_info": {"env": env, "env_params": env_params},
+                "extra_info": {
+                    "env": env,
+                    "env_params": env_params,
+                    "parse_failure_policy": parse_failure_policy,
+                },
             }
             for _ in range(n)
         ]
@@ -35,6 +44,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", default="recovery")
     parser.add_argument("--env-params", default="{}", help="JSON dict")
+    parser.add_argument(
+        "--parse-failure-policy",
+        choices=("minimum_return", "raise"),
+        default="minimum_return",
+    )
     parser.add_argument("--n-train", type=int, default=4096)
     parser.add_argument("--n-val", type=int, default=512)
     parser.add_argument("--out-dir", type=Path, default=Path("data"))
@@ -44,7 +58,7 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for split, n in (("train", args.n_train), ("val", args.n_val)):
         path = args.out_dir / f"{args.env}_{split}.parquet"
-        rows(n, args.env, env_params).to_parquet(path)
+        rows(n, args.env, env_params, args.parse_failure_policy).to_parquet(path)
         print(f"wrote {path} ({n} rows)")
 
 

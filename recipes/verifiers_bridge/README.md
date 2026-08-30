@@ -4,8 +4,10 @@ This recipe plays the suite's verbalized MDPs inside
 [verifiers](https://github.com/PrimeIntellect-ai/verifiers) (0.1.x) — the
 environment library used by prime-rl and the Environments Hub. Same idea as
 `recipes/verl_bridge`: the underlying MDP stays known, so real rollouts from
-a real model remain exactly scoreable, and the episode log feeds directly
-into `recipes/verl_bridge/analyze_checkpoint.py`.
+a real model can be fitted to a finite-sample Markov projection, and the
+episode log feeds directly into `recipes/verl_bridge/analyze_checkpoint.py`.
+Dynamic programming is exact for that fitted projection, not for a potentially
+history-conditioned LLM policy.
 
 ## Files
 
@@ -17,10 +19,12 @@ into `recipes/verl_bridge/analyze_checkpoint.py`.
   a JSONL log (`episodes_path` argument or `CREDIT_BENCH_EPISODES_PATH`
   env var). The rubric reward is the episode's total return.
 
-All environment mechanics (rendering, parsing, the deterministic fallback
-for unparseable replies, transition sampling) live in the installed package
-at `agent_credit_bench.integrations.bridge`, shared with the verl recipe —
-including the exactness-under-an-imperfect-model argument documented there.
+All environment mechanics (rendering, parsing, parse-failure handling,
+transition sampling) live in the installed package at
+`agent_credit_bench.integrations.bridge`, shared with the verl recipe. The
+default `parse_failure_policy="minimum_return"` uses backward induction to
+choose a deterministic lowest-return action; set it to `"raise"` for strict
+evaluation. The executed action, parse status, and policy are logged.
 
 ## Quick eval
 
@@ -43,7 +47,8 @@ python recipes/verl_bridge/analyze_checkpoint.py episodes/eval.jsonl
 ```
 
 reports the empirical policy, parsed-rate, and every estimator's credit
-quality against exact advantages under the policy the model actually played.
+quality against exact advantages for the fitted finite-sample Markov
+projection. It rejects inputs that mix environments or `env_params`.
 
 ## Training
 
@@ -58,6 +63,6 @@ identical transition outcomes in every rollout of a group.
 
 Tested end-to-end against verifiers 0.1.14's real `MultiTurnEnv` rollout
 loop with a scripted client (`tests/test_verifiers_integration.py`): full
-episodes, env-side termination, fallback parsing, episode logging, and
-rubric scoring, with the logged JSONL round-tripping into suite
+episodes, env-side termination, minimum-return parse fallback, episode
+logging, and rubric scoring, with the logged JSONL round-tripping into suite
 trajectories. Not yet exercised: a live training run through prime-rl.

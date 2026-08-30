@@ -11,6 +11,11 @@ vectors are sparse dicts keyed by (t, s, a); absent keys are zero.
 import math
 from collections.abc import Sequence
 
+from agent_credit_bench._validation import (
+    validate_positive_integer,
+    validated_policy_probabilities,
+    validated_transitions,
+)
 from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.policy import Policy
 from agent_credit_bench.types import Action, ExactValues, State, Trajectory
@@ -26,6 +31,7 @@ def state_visitation(
     Terminated transitions drop their probability mass, so the values at
     timestep t sum to the probability of still being alive at t.
     """
+    validate_positive_integer(mdp.horizon, "mdp.horizon")
     visitation: dict[tuple[int, State], float] = {(0, mdp.initial_state): 1.0}
     for t in range(mdp.horizon - 1):
         for s in mdp.states_at(t):
@@ -33,9 +39,11 @@ def state_visitation(
             if mass == 0.0:
                 continue
             actions = mdp.actions(t, s)
-            probs = policy.action_probabilities(t, s, actions)
+            probs = validated_policy_probabilities(policy, t, s, actions)
             for a in actions:
-                for tr in mdp.transitions(t, s, a):
+                transitions = mdp.transitions(t, s, a)
+                validated_transitions(transitions, t, s, a)
+                for tr in transitions:
                     if tr.terminated:
                         continue
                     key = (t + 1, tr.next_state)
@@ -65,7 +73,7 @@ def exact_policy_gradient(
     gradient: GradientVector = {}
     for (t, s), mass in visitation.items():
         actions = mdp.actions(t, s)
-        probs = policy.action_probabilities(t, s, actions)
+        probs = validated_policy_probabilities(policy, t, s, actions)
         for a in actions:
             gradient[(t, s, a)] = mass * probs[a] * values.advantages[(t, s, a)]
     return gradient
@@ -87,7 +95,7 @@ def batch_gradient(
         for step, credit in zip(trajectory.steps, row, strict=True):
             t, s = step.timestep, step.state
             actions = mdp.actions(t, s)
-            probs = policy.action_probabilities(t, s, actions)
+            probs = validated_policy_probabilities(policy, t, s, actions)
             for a in actions:
                 indicator = 1.0 if a == step.action else 0.0
                 key = (t, s, a)
@@ -99,30 +107,39 @@ def batch_gradient(
 
 
 def norm(gradient: GradientVector) -> float:
-    return math.sqrt(sum(v * v for v in gradient.values()))
+    return math.sqrt(math.fsum(v * v for v in gradient.values()))
 
 
-def cosine_similarity(g1: GradientVector, g2: GradientVector) -> float:
-    """Cosine of the angle between two gradient vectors; 0.0 if either is zero."""
+def cosine_similarity(
+    g1: GradientVector, g2: GradientVector
+) -> float | None:
+    """Cosine of two gradient vectors, or ``None`` when either is zero.
+
+    A zero vector has no direction. Returning a numeric sentinel such as 0.0
+    would incorrectly describe it as orthogonal to the other vector.
+    """
     n1, n2 = norm(g1), norm(g2)
     if n1 == 0.0 or n2 == 0.0:
-        return 0.0
+        return None
     keys = set(g1) | set(g2)
-    dot = sum(g1.get(k, 0.0) * g2.get(k, 0.0) for k in keys)
-    return dot / (n1 * n2)
+    dot = math.fsum(g1.get(k, 0.0) * g2.get(k, 0.0) for k in keys)
+    # Roundoff can put an exactly aligned result a few ulps outside the
+    # mathematical range (for example 1.0000000000000002).
+    return max(-1.0, min(1.0, dot / (n1 * n2)))
 
 
 def mean_gradient(gradients: Sequence[GradientVector]) -> GradientVector:
     keys = set().union(*gradients) if gradients else set()
     n = len(gradients)
-    return {k: sum(g.get(k, 0.0) for g in gradients) / n for k in keys}
+    return {k: math.fsum(g.get(k, 0.0) for g in gradients) / n for k in keys}
 
 
 def gradient_variance(gradients: Sequence[GradientVector]) -> float:
     """Mean squared deviation around the mean gradient: E ||g - mean g||^2."""
     center = mean_gradient(gradients)
     keys = set(center)
-    total = 0.0
-    for g in gradients:
-        total += sum((g.get(k, 0.0) - center[k]) ** 2 for k in keys)
+    total = math.fsum(
+        math.fsum((g.get(k, 0.0) - center[k]) ** 2 for k in keys)
+        for g in gradients
+    )
     return total / len(gradients)

@@ -13,13 +13,15 @@ from helpers import stochastic_case, two_step_case
 
 
 def _mc_error(mdp, policy, num_rollouts, seed=0):
-    """RMSE of MC credit vs exact advantage over a sampled batch."""
+    """RMSE with deterministic but independent batch/continuation streams."""
     values = solve_exact_values(mdp, policy)
     trajectories = sample_trajectories(mdp, policy, 200, seed=seed)
     context = EstimatorContext(mdp=mdp, policy=policy, trajectories=trajectories)
-    credits = MonteCarloAdvantage(num_rollouts=num_rollouts, seed=seed).estimate(
-        context
-    )
+    mc_seed = 1_000_003 + seed * 7_919
+    assert mc_seed != seed
+    credits = MonteCarloAdvantage(
+        num_rollouts=num_rollouts, seed=mc_seed
+    ).estimate(context)
     squared = [
         (credit - values.advantages[(s.timestep, s.state, s.action)]) ** 2
         for trajectory, row in zip(trajectories, credits, strict=True)

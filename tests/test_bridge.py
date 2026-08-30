@@ -5,7 +5,11 @@ Framework-free: everything here runs in the zero-dependency environment.
 
 import pytest
 
-from agent_credit_bench.envs import RecoveryEnv, VariableHorizonEnv
+from agent_credit_bench.envs import (
+    DelayedEffectEnv,
+    RecoveryEnv,
+    VariableHorizonEnv,
+)
 from agent_credit_bench.integrations.bridge import (
     BridgeSession,
     EmpiricalTabularPolicy,
@@ -17,6 +21,7 @@ from agent_credit_bench.integrations.bridge import (
     trajectory_from_record,
 )
 from agent_credit_bench.oracle import solve_exact_values
+from agent_credit_bench.types import Step, Trajectory
 
 
 def test_parse_action_last_mention_wins() -> None:
@@ -60,13 +65,38 @@ def test_play_episode_bad_then_recover() -> None:
     assert all(turn.parsed for turn in session.turns)
 
 
-def test_unparseable_reply_uses_deterministic_fallback() -> None:
+def test_unparseable_reply_uses_deterministic_minimum_return_fallback() -> None:
     session = play_episode(
-        RecoveryEnv(), scripted({0: "no idea!", 1: "RECOVER"}), seed=0
+        RecoveryEnv(), scripted({0: "no idea!", 1: "still no idea!"}), seed=0
     )
-    assert session.trajectory.steps[0].action == "GOOD"  # actions[0] fallback
-    assert not session.turns[0].parsed
-    assert session.done and len(session.trajectory.steps) == 1
+    assert [step.action for step in session.trajectory.steps] == ["BAD", "GIVE_UP"]
+    assert not any(turn.parsed for turn in session.turns)
+    assert session.total_return == 0.0
+    assert session.done
+
+
+def test_minimum_return_fallback_looks_through_delayed_reward() -> None:
+    mdp = DelayedEffectEnv(
+        horizon=2,
+        good_success_probability=1.0,
+        bad_success_probability=0.0,
+    )
+    session = play_episode(
+        mdp,
+        scripted({0: "unparseable", 1: "DISTRACT_0"}),
+        seed=0,
+    )
+    # Both initial actions pay zero immediately. Backward induction still
+    # selects BAD because its expected terminal return is lower.
+    assert session.trajectory.steps[0].action == "BAD"
+    assert session.total_return == 0.0
+
+
+def test_unparseable_reply_can_raise_instead_of_falling_back() -> None:
+    session = BridgeSession(RecoveryEnv(), parse_failure_policy="raise")
+    with pytest.raises(ValueError, match="did not name a legal action"):
+        session.act("no action here")
+    assert session.turns == ()
 
 
 def test_horizon_caps_episode_length() -> None:
@@ -93,6 +123,7 @@ def test_episode_record_round_trip(tmp_path) -> None:
     path.write_text(json.dumps(record) + "\n")
     loaded = load_episodes([path])
     assert loaded[0]["checkpoint"] == 3
+    assert loaded[0]["parse_failure_policy"] == "minimum_return"
     assert loaded[0]["turns"][0]["parsed"] is True
     assert trajectory_from_record(loaded[0]) == session.trajectory
 
@@ -112,6 +143,7 @@ def test_empirical_policy_counts_and_fallback() -> None:
     policy = EmpiricalTabularPolicy.from_trajectories(
         [s.trajectory for s in sessions]
     )
+    assert policy.sample_size == 3
     probs = policy.action_probabilities(0, "s0", ["GOOD", "BAD"])
     assert probs["GOOD"] == pytest.approx(2 / 3)
     assert probs["BAD"] == pytest.approx(1 / 3)
@@ -121,7 +153,30 @@ def test_empirical_policy_counts_and_fallback() -> None:
     assert unseen == {"A": 0.5, "B": 0.5}
 
 
-def test_exact_values_solve_under_empirical_policy() -> None:
+def test_empirical_policy_collapses_histories_at_same_markov_key() -> None:
+    trajectories = [
+        Trajectory(
+            (
+                Step(0, "root", "LEFT", 0.0, "merged", False),
+                Step(1, "merged", "A", 0.0, "done", True),
+            )
+        ),
+        Trajectory(
+            (
+                Step(0, "root", "RIGHT", 0.0, "merged", False),
+                Step(1, "merged", "B", 0.0, "done", True),
+            )
+        ),
+    ]
+    policy = EmpiricalTabularPolicy.from_trajectories(trajectories)
+    assert policy.sample_size == 2
+    assert policy.action_probabilities(1, "merged", ["A", "B"]) == {
+        "A": 0.5,
+        "B": 0.5,
+    }
+
+
+def test_exact_values_solve_under_empirical_markov_projection() -> None:
     mdp = RecoveryEnv()
     sessions = [
         play_episode(mdp, scripted({0: "GOOD"}), seed=0),
@@ -132,7 +187,8 @@ def test_exact_values_solve_under_empirical_policy() -> None:
         [s.trajectory for s in sessions]
     )
     exact = solve_exact_values(mdp, policy)
-    # V(0, s0) under the measured policy: 1/3 * 1 + 2/3 * (1/2 * 1) = 2/3
+    # V(0, s0) under the fitted projection:
+    # 1/3 * 1 + 2/3 * (1/2 * 1) = 2/3
     assert exact.state_values[(0, "s0")] == pytest.approx(2 / 3)
 
 

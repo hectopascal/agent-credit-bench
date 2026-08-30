@@ -6,7 +6,8 @@ Wiring (verl 0.9.0, experimental agent-loop API):
 2. Point the trainer at agent_loops.yaml:
        actor_rollout_ref.rollout.agent.agent_loop_config_path=.../agent_loops.yaml
 3. Give dataset rows agent_name="credit_bench_bridge" (see make_dataset.py),
-   with extra_info={"env": "recovery", "env_params": {...}}.
+   with extra_info={"env": "recovery", "env_params": {...}}. Optionally set
+   parse_failure_policy to "raise" instead of the default "minimum_return".
 4. Export CREDIT_BENCH_EPISODES_PATH=/path/to/episodes.jsonl to log every
    finished episode for analyze_checkpoint.py.
 
@@ -57,6 +58,7 @@ class CreditBenchBridgeLoop(AgentLoopBase):
         info = dict(kwargs.get("extra_info") or {})
         env_name = info.get("env", "recovery")
         env_params = dict(info.get("env_params") or {})
+        parse_failure_policy = info.get("parse_failure_policy", "minimum_return")
         # No seed during training: a per-prompt seed would correlate
         # transition outcomes inside a GRPO group. extra_info["seed"] exists
         # for reproducible offline evaluation only.
@@ -64,6 +66,7 @@ class CreditBenchBridgeLoop(AgentLoopBase):
         session = BridgeSession(
             make_env(env_name, **env_params),
             seed=None if seed is None else int(seed),
+            parse_failure_policy=parse_failure_policy,
         )
 
         messages = [
@@ -81,8 +84,15 @@ class CreditBenchBridgeLoop(AgentLoopBase):
                 prompt_ids=prompt_ids,
                 sampling_params=sampling_params,
             )
-            prompt_ids = prompt_ids + list(output.token_ids)
-            response_mask = response_mask + [1] * len(output.token_ids)
+            generated_ids = list(output.token_ids)
+            prompt_ids = prompt_ids + generated_ids
+            response_mask = response_mask + [1] * len(generated_ids)
+            # Do not execute an action from tokens the trainer will slice away.
+            # In particular, a terminal action that crosses response_length
+            # must not keep its reward while disappearing from response_ids.
+            if len(response_mask) > self.response_length:
+                truncated = True
+                break
             reply = self.tokenizer.decode(output.token_ids, skip_special_tokens=True)
             session.act(reply)
             if session.done:
@@ -97,6 +107,9 @@ class CreditBenchBridgeLoop(AgentLoopBase):
             observation_ids = self.turn_separator + observation_ids
             prompt_ids = prompt_ids + observation_ids
             response_mask = response_mask + [0] * len(observation_ids)
+            if len(response_mask) >= self.response_length:
+                truncated = True
+                break
 
         self._log_episode(session, env_name, env_params, truncated)
 
@@ -105,7 +118,7 @@ class CreditBenchBridgeLoop(AgentLoopBase):
             prompt_ids=prompt_ids[:prompt_length],
             response_ids=response_ids[: self.response_length],
             response_mask=response_mask[: self.response_length],
-            reward_score=session.total_return,
+            reward_score=0.0 if truncated else session.total_return,
             num_turns=2 * len(session.turns) + 1,
             metrics={},
         )

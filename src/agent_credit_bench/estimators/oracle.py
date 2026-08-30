@@ -1,4 +1,4 @@
-"""Perfect-score baseline: the exact advantage of each sampled action (plan.md §9.1).
+"""Exact-credit baseline: the exact advantage of each sampled action (plan.md §9.1).
 
 Exists to validate the runner, catch metric bugs, and anchor every figure.
 Must score perfectly up to floating-point tolerance.

@@ -1,11 +1,19 @@
 # Agent Credit Bench — Project Plan
 
+> **Historical design document.** This plan records the original `v0.1`
+> sequence, hypotheses, and stopping conditions; the repository has since been
+> implemented and extended beyond that scope. Its unchecked boxes,
+> future-tense milestones, "expected qualitative results," M0 label, and
+> immediate-next-action section are not current status or empirical evidence.
+> Use the tests, committed result CSVs, and README validation notes for current
+> behavior and supported claims.
+
 ## Project status
 
-**Repository:** `agent-credit-bench`  
-**Python package:** `agent_credit_bench`  
-**Current phase:** M0 — exact-value oracle  
-**Target release:** `v0.1.0`
+- **Repository:** `agent-credit-bench`
+- **Python package:** `agent_credit_bench`
+- **Phase at time of drafting:** M0 — exact-value oracle
+- **Original target release:** `v0.1.0`
 
 ---
 
@@ -796,7 +804,7 @@ Produce:
 
 ### Expected qualitative result
 
-Naive trajectory-level estimators should increasingly smear credit over irrelevant actions as the horizon grows. At the same time, `OutcomeBroadcast`'s gradient direction bias should stay near zero while its gradient variance grows — value smearing and gradient invalidity are different failures, and this figure should show both axes at once.
+Naive trajectory-level estimators should increasingly smear credit over irrelevant actions as the horizon grows. At the same time, `OutcomeBroadcast`'s mean-gradient cosine should stay near one while its gradient variance grows — value smearing and gradient invalidity are different failures, and this figure should show both axes at once.
 
 Do not hard-code this expected result into tests. Tests should validate implementation invariants, not force the experiment to agree with the hypothesis.
 

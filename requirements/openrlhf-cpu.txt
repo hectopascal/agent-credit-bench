@@ -1,0 +1,25 @@
+# Non-CUDA dependencies needed to import OpenRLHF 0.11.0's advantage pipeline.
+# Install openrlhf itself with --no-deps and run scripts/openrlhf_cpu_stubs.py;
+# this file deliberately omits flash-attn and vllm.
+aiohttp
+# bitsandbytes is intentionally omitted: PEFT treats it as optional, the
+# scored advantage path never uses it, and its native wheel is not portable
+# to every CPU-only validation host.
+datasets
+deepspeed==0.19.5
+grpcio>=1.74.0
+isort
+jsonlines
+loralib
+optimum
+optree>=0.15.0
+peft
+pylatexenc
+pynvml>=12.0.0
+ray[default]==2.55.0
+tensorboard
+torchdata
+torchmetrics
+transformers==5.15.0
+transformers-stream-generator
+wandb

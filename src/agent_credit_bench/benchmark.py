@@ -8,6 +8,10 @@ gradient validity (does it induce the right training signal?).
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from agent_credit_bench._validation import (
+    validate_integer,
+    validate_positive_integer,
+)
 from agent_credit_bench.estimators.base import CreditEstimator, EstimatorContext
 from agent_credit_bench.gradients import (
     batch_gradient,
@@ -43,17 +47,31 @@ class SeedMetrics:
     sign_num_scored: int
     sign_num_excluded: int
     leakage_ratio: float
-    gradient_cosine: float  # this batch's gradient vs g*
+    gradient_cosine: float | None  # undefined if either gradient is zero
 
 
 @dataclass(frozen=True)
 class BenchmarkResult:
     estimator: str
     seed_metrics: tuple[SeedMetrics, ...]
-    gradient_direction_bias: float  # cosine(mean g_hat over seeds, g*)
-    gradient_magnitude_error: float  # ||mean g_hat - g*|| / ||g*||
+    mean_gradient_cosine: float | None  # undefined if either gradient is zero
+    relative_mean_gradient_error: float | None  # ||mean(g)-g*|| / ||g*||
     gradient_variance: float  # E ||g_hat - mean g_hat||^2 over seeds
     per_turn: dict[int, TurnStats]  # pooled over all seeds
+
+    @property
+    def gradient_direction_bias(self) -> float | None:
+        """Deprecated compatibility alias for :attr:`mean_gradient_cosine`."""
+        return self.mean_gradient_cosine
+
+    @property
+    def gradient_magnitude_error(self) -> float | None:
+        """Deprecated compatibility alias for relative mean-gradient error.
+
+        The historical name was inaccurate: this metric includes angular as
+        well as norm error because its numerator is ``||mean(g_hat) - g*||``.
+        """
+        return self.relative_mean_gradient_error
 
     def rows(self) -> list[dict]:
         """Stable tabular form (one row per seed) for CSV export."""
@@ -70,8 +88,11 @@ class BenchmarkResult:
                 "sign_num_excluded": m.sign_num_excluded,
                 "leakage_ratio": m.leakage_ratio,
                 "gradient_cosine": m.gradient_cosine,
-                "gradient_direction_bias": self.gradient_direction_bias,
-                "gradient_magnitude_error": self.gradient_magnitude_error,
+                "mean_gradient_cosine": self.mean_gradient_cosine,
+                "relative_mean_gradient_error": self.relative_mean_gradient_error,
+                # Deprecated output-schema aliases retained for 0.x consumers.
+                "gradient_direction_bias": self.mean_gradient_cosine,
+                "gradient_magnitude_error": self.relative_mean_gradient_error,
                 "gradient_variance": self.gradient_variance,
             }
             for m in self.seed_metrics
@@ -85,6 +106,18 @@ def run_benchmark(
     batch_size: int,
     seeds: Iterable[int],
 ) -> BenchmarkResult:
+    """Run one estimator over nonempty, independently seeded batches.
+
+    Direction and relative-error metrics are ``None`` when their required
+    gradient direction or nonzero exact-gradient scale does not exist.
+    """
+    validate_positive_integer(batch_size, "batch_size")
+    seed_values = tuple(seeds)
+    if not seed_values:
+        raise ValueError("seeds must contain at least one seed")
+    for seed in seed_values:
+        validate_integer(seed, "each seed")
+
     values = solve_exact_values(mdp, policy)
     g_star = exact_policy_gradient(mdp, policy, values)
 
@@ -94,7 +127,7 @@ def run_benchmark(
     all_estimated: list[float] = []
     all_exact: list[float] = []
 
-    for seed in seeds:
+    for seed in seed_values:
         trajectories = sample_trajectories(mdp, policy, batch_size, seed)
         context = EstimatorContext(
             mdp=mdp, policy=policy, trajectories=trajectories
@@ -143,15 +176,13 @@ def run_benchmark(
         k: center.get(k, 0.0) - g_star.get(k, 0.0)
         for k in set(center) | set(g_star)
     }
-    magnitude_error = (
-        norm(difference) / g_star_norm if g_star_norm > 0 else float("inf")
-    )
+    relative_error = norm(difference) / g_star_norm if g_star_norm > 0 else None
 
     return BenchmarkResult(
         estimator=estimator.name,
         seed_metrics=tuple(seed_metrics),
-        gradient_direction_bias=cosine_similarity(center, g_star),
-        gradient_magnitude_error=magnitude_error,
+        mean_gradient_cosine=cosine_similarity(center, g_star),
+        relative_mean_gradient_error=relative_error,
         gradient_variance=gradient_variance(batch_gradients),
         per_turn=per_turn_stats(all_timesteps, all_estimated, all_exact),
     )
