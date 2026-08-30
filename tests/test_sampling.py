@@ -10,7 +10,7 @@ from agent_credit_bench.oracle import solve_exact_values
 from agent_credit_bench.policy import TabularPolicy
 from agent_credit_bench.sampling import sample_trajectories
 from agent_credit_bench.types import Transition
-from helpers import TableMDP, bandit_case, stochastic_case
+from helpers import TableMDP, bandit_case, stochastic_case, two_step_case
 
 
 def chain_case() -> tuple[TableMDP, TabularPolicy]:
@@ -69,11 +69,36 @@ def test_seeded_sampling_is_reproducible():
     assert first != other  # astronomically unlikely to collide
 
 
-def test_action_frequencies_approach_policy():
-    mdp, policy = bandit_case()
+def test_action_frequencies_approach_non_uniform_policy():
+    mdp, policy = two_step_case()
     trajectories = sample_trajectories(mdp, policy, batch_size=4000, seed=0)
-    freq_a = sum(t.steps[0].action == "A" for t in trajectories) / len(trajectories)
-    assert freq_a == pytest.approx(0.5, abs=0.05)
+    freq_right = sum(
+        trajectory.steps[0].action == "RIGHT" for trajectory in trajectories
+    ) / len(trajectories)
+    assert freq_right == pytest.approx(0.75, abs=0.05)
+
+
+def test_total_return_sums_nonterminal_and_terminal_rewards():
+    mdp = TableMDP(
+        horizon=2,
+        initial_state="s0",
+        table={
+            (0, "s0", "CONTINUE"): (Transition("s1", 1.25, 1.0, False),),
+            (1, "s1", "FINISH"): (Transition("done", 2.0, 1.0, True),),
+        },
+    )
+    policy = TabularPolicy(
+        {
+            (0, "s0"): {"CONTINUE": 1.0},
+            (1, "s1"): {"FINISH": 1.0},
+        }
+    )
+
+    trajectory = sample_trajectories(mdp, policy, batch_size=1, seed=0)[0]
+
+    assert [step.reward for step in trajectory.steps] == [1.25, 2.0]
+    assert not trajectory.steps[0].terminated
+    assert trajectory.total_return == pytest.approx(3.25)
 
 
 def test_transition_frequencies_approach_probabilities():

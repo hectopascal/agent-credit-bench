@@ -5,6 +5,7 @@ import pytest
 from agent_credit_bench.envs.recovery import RecoveryEnv
 from agent_credit_bench.oracle import solve_exact_values
 from agent_credit_bench.policy import UniformPolicy
+from agent_credit_bench.sampling import sample_trajectories
 
 
 def test_transition_probabilities_sum_to_one():
@@ -42,3 +43,30 @@ def test_hand_calculated_values_for_certain_recovery():
     assert values.state_values[(0, "s0")] == pytest.approx(0.75)
     assert values.advantages[(0, "s0", "BAD")] == pytest.approx(-0.25)
     assert values.advantages[(1, "mistake", "RECOVER")] == pytest.approx(0.5)
+
+
+def test_good_terminates_at_step_zero_without_phantom_turns():
+    env = RecoveryEnv(recover_success_probability=1.0)
+    trajectories = sample_trajectories(
+        env,
+        UniformPolicy(),
+        batch_size=64,
+        seed=0,
+    )
+    good = [
+        trajectory
+        for trajectory in trajectories
+        if trajectory.steps[0].action == "GOOD"
+    ]
+    bad = [
+        trajectory
+        for trajectory in trajectories
+        if trajectory.steps[0].action == "BAD"
+    ]
+
+    assert good and bad
+    assert all(len(trajectory.steps) == 1 for trajectory in good)
+    assert all(trajectory.steps[0].terminated for trajectory in good)
+    assert all(len(trajectory.steps) == 2 for trajectory in bad)
+    assert all(trajectory.steps[-1].terminated for trajectory in bad)
+    assert {trajectory.total_return for trajectory in trajectories} <= {0.0, 1.0}

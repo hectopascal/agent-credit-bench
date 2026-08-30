@@ -10,6 +10,7 @@ from agent_credit_bench.gradients import (
     batch_gradient,
     cosine_similarity,
     exact_policy_gradient,
+    gradient_variance,
     mean_gradient,
     state_visitation,
 )
@@ -44,6 +45,14 @@ def test_spearman_monotonic_and_constant():
     assert spearman([3.0, 2.0, 1.0], [10.0, 20.0, 30.0]) == pytest.approx(-1.0)
     # Defined behavior for constant input (plan.md §10.2): 0.0.
     assert spearman([5.0, 5.0, 5.0], [1.0, 2.0, 3.0]) == 0.0
+
+
+def test_spearman_uses_ranks_for_nonlinear_monotonic_data():
+    # Rank correlation is perfect; Pearson correlation is only about 0.785.
+    assert spearman(
+        [1.0, 2.0, 3.0, 4.0],
+        [1.0, 2.0, 3.0, 100.0],
+    ) == pytest.approx(1.0)
 
 
 def test_spearman_handles_ties():
@@ -110,6 +119,13 @@ def test_per_turn_stats_hand_calculation():
     assert stats[0].count == 2
     assert stats[1].bias == pytest.approx(0.0)
     assert stats[1].count == 1
+
+
+def test_gradient_variance_uses_population_denominator():
+    key = (0, "s0", "A")
+    gradients = [{key: 0.0}, {key: 2.0}]
+    # The mean is 1 and E[(g - mean)^2] = (1 + 1) / 2 = 1.
+    assert gradient_variance(gradients) == pytest.approx(1.0)
 
 
 def test_visitation_two_step_case():
