@@ -1,4 +1,4 @@
-# agent-credit-bench
+# AgentCreditBench
 
 **Unit tests for turn-level credit assignment in agentic reinforcement learning.**
 
