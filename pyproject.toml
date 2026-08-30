@@ -5,10 +5,41 @@ build-backend = "hatchling.build"
 [project]
 name = "agent-credit-bench"
 version = "0.5.0"
-description = "Conformance-test suite for turn-level credit estimators, with exact-advantage oracles on tiny finite-horizon MDPs."
+description = "Exact-oracle benchmark for testing turn-level credit assignment and advantage estimators in agentic reinforcement learning."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = []
+
+keywords = [
+  "reinforcement learning",
+  "agentic RL",
+  "LLM agents",
+  "credit assignment",
+  "turn-level credit assignment",
+  "advantage estimation",
+  "policy gradient",
+  "GRPO",
+  "RLOO",
+  "GAE",
+  "benchmark",
+]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/hectopascal/agent-credit-bench"
+Source = "https://github.com/hectopascal/agent-credit-bench"
+Issues = "https://github.com/hectopascal/agent-credit-bench/issues"
+Changelog = "https://github.com/hectopascal/agent-credit-bench/releases"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.4"]
