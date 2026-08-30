@@ -1,6 +1,9 @@
 # AgentCreditBench
 
+[![CI](https://github.com/hectopascal/agent-credit-bench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hectopascal/agent-credit-bench/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hectopascal/agent-credit-bench?include_prereleases&sort=semver)](https://github.com/hectopascal/agent-credit-bench/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22178938.svg)](https://doi.org/10.5281/zenodo.22178938)
+[![License](https://img.shields.io/github/license/hectopascal/agent-credit-bench)](LICENSE)
 
 **Unit tests for turn-level credit assignment in agentic reinforcement learning.**
 
