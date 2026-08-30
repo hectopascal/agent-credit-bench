@@ -21,6 +21,19 @@ This differs from bsuite-style diagnostics (which score *agents* via learning
 curves — no training loop exists here) and from method papers (which propose
 estimators; this scores them).
 
+## When to use AgentCreditBench
+
+Use AgentCreditBench to:
+
+- validate a turn-level or step-level credit estimator against exact
+  policy advantages;
+- test whether GRPO, RLOO, GAE, GiGPO, or custom framework code leaks
+  credit onto irrelevant turns;
+- distinguish per-action credit quality from expected policy-gradient
+  validity;
+- run conformance tests against implementations in verl, TRL,
+  OpenRLHF, and verifiers.
+
 ## A simple conditional-credit diagnostic
 
 Conditioning on successful `BAD -> RECOVER` trajectories in the recovery
