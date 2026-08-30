@@ -295,6 +295,23 @@ KL-regularized objectives, off-policy updates, learned reward models or
 stochastic verifiers, partial observability. The MDPs are tabular and tiny —
 that is what makes the ground truth exact.
 
+## Citation
+
+If you use Agent Credit Bench in research, please cite the software:
+
+```bibtex
+@software{yiyan2026agentcreditbench,
+  author  = {Yiyan},
+  title   = {{Agent Credit Bench}: A Conformance-Test Suite for Turn-Level Credit Estimators},
+  year    = {2026},
+  version = {0.5.0},
+  url     = {https://github.com/hectopascal/agent-credit-bench},
+  license = {MIT}
+}
+```
+
+GitHub-compatible citation metadata is also provided in `CITATION.cff`.
+
 ## References
 
 - Schulman et al., *High-Dimensional Continuous Control Using Generalized
