@@ -24,7 +24,7 @@ estimators' whole-batch semantics.
 
 Requires the optional extra::
 
-    pip install "agent-credit-bench[verl]"
+    python -m pip install -e ".[verl]"  # from the source checkout
 
 Tested against verl 0.9.0 (torch CPU is sufficient).
 """
@@ -48,7 +48,8 @@ def _require_supported_verl_version() -> None:
     except PackageNotFoundError as exc:
         raise ImportError(
             "verl is required for agent_credit_bench.integrations.verl — "
-            'install it with: pip install "agent-credit-bench[verl]"'
+            'from the AgentCreditBench checkout, run: '
+            'python -m pip install -e ".[verl]"'
         ) from exc
     if installed != _SUPPORTED_VERL_VERSION:
         raise RuntimeError(
@@ -68,7 +69,8 @@ def _verl_core_algos() -> tuple[Any, Any, Any]:
     except ImportError as exc:
         raise ImportError(
             "verl is required for agent_credit_bench.integrations.verl — "
-            'install it with: pip install "agent-credit-bench[verl]"'
+            'from the AgentCreditBench checkout, run: '
+            'python -m pip install -e ".[verl]"'
         ) from exc
     return torch, numpy, core_algos
 

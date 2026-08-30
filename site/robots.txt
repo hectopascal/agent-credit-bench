@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hectopascal.github.io/agent-credit-bench/sitemap.xml

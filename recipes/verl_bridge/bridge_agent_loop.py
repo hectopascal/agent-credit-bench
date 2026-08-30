@@ -1,4 +1,4 @@
-"""verl agent loop that plays agent-credit-bench environments as chat games.
+"""verl agent loop that plays AgentCreditBench environments as chat games.
 
 Wiring (verl 0.9.0, experimental agent-loop API):
 

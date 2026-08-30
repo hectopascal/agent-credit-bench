@@ -5,7 +5,8 @@ advantage math of [TRL](https://github.com/huggingface/trl)'s `GRPOTrainer`
 and `RLOOTrainer`.
 
 ```bash
-pip install "agent-credit-bench[trl]"   # pins TRL 1.12.0; torch CPU is sufficient
+# From the AgentCreditBench source checkout:
+python -m pip install -e ".[trl]"   # pins TRL 1.12.0; torch CPU is sufficient
 python experiments/cross_framework_conformance.py
 pytest tests/test_trl_integration.py
 ```

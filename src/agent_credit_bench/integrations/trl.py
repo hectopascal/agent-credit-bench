@@ -20,7 +20,7 @@ machinery) never triggers because every suite trajectory has a return.
 
 Requires the optional extra::
 
-    pip install "agent-credit-bench[trl]"
+    python -m pip install -e ".[trl]"  # from the source checkout
 
 Transcribed from and restricted to TRL 1.12.0 (torch CPU is sufficient).
 """
@@ -41,7 +41,8 @@ def _require_supported_trl_version() -> None:
     except PackageNotFoundError as exc:
         raise ImportError(
             "trl is required for agent_credit_bench.integrations.trl — "
-            'install it with: pip install "agent-credit-bench[trl]"'
+            'from the AgentCreditBench checkout, run: '
+            'python -m pip install -e ".[trl]"'
         ) from exc
     if installed != _SUPPORTED_TRL_VERSION:
         raise RuntimeError(
@@ -61,7 +62,8 @@ def _trl_parts() -> tuple[Any, Any]:
     except ImportError as exc:
         raise ImportError(
             "trl is required for agent_credit_bench.integrations.trl — "
-            'install it with: pip install "agent-credit-bench[trl]"'
+            'from the AgentCreditBench checkout, run: '
+            'python -m pip install -e ".[trl]"'
         ) from exc
     return torch, nanstd
 

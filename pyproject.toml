@@ -8,6 +8,8 @@ version = "0.5.0"
 description = "Exact-oracle benchmark for testing turn-level credit assignment and advantage estimators in agentic reinforcement learning."
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [{ name = "Yi Yan Ng", email = "yiyan.ng.ml@gmail.com" }]
+maintainers = [{ name = "Yi Yan Ng", email = "yiyan.ng.ml@gmail.com" }]
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = []
@@ -36,7 +38,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hectopascal/agent-credit-bench"
+Homepage = "https://hectopascal.github.io/agent-credit-bench/"
+Documentation = "https://hectopascal.github.io/agent-credit-bench/"
 Source = "https://github.com/hectopascal/agent-credit-bench"
 Issues = "https://github.com/hectopascal/agent-credit-bench/issues"
 Changelog = "https://github.com/hectopascal/agent-credit-bench/releases"

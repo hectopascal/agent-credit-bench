@@ -80,7 +80,8 @@ fails closed instead of solving all trajectories against the last record's MDP.
 Requires a working verl 0.9.0 install with an inference backend
 (`pip install "verl[vllm]"` or `[sglang]` — the backend also provides the
 fastapi/uvicorn/cachetools stack the agent-loop path imports), plus
-`pip install agent-credit-bench` in the same environment.
+`python -m pip install -e .` from the AgentCreditBench source checkout in the
+same environment.
 
 ```bash
 cd recipes/verl_bridge

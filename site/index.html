@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AgentCreditBench — Exact-Oracle Credit Assignment Benchmark</title>
+    <meta name="description" content="Test GRPO, RLOO, GAE, GiGPO, Monte Carlo, and custom turn-level credit estimators against exact policy advantages in reproducible agentic-RL environments.">
+    <meta name="keywords" content="agentic reinforcement learning, turn-level credit assignment, advantage estimation, GRPO, RLOO, GAE, GiGPO, LLM agents, benchmark">
+    <meta name="author" content="Yi Yan Ng">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hectopascal.github.io/agent-credit-bench/">
+    <link rel="alternate" type="text/plain" href="llms.txt" title="AgentCreditBench context for language models">
+    <link rel="stylesheet" href="styles.css">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="AgentCreditBench">
+    <meta property="og:title" content="AgentCreditBench — Exact-Oracle Credit Assignment Benchmark">
+    <meta property="og:description" content="Unit tests for turn-level credit assignment in agentic reinforcement learning.">
+    <meta property="og:url" content="https://hectopascal.github.io/agent-credit-bench/">
+    <meta property="og:image" content="https://hectopascal.github.io/agent-credit-bench/results/recovery_credit.png">
+    <meta property="og:image:width" content="1050">
+    <meta property="og:image:height" content="675">
+    <meta property="og:image:alt" content="Recovery diagnostic comparing BAD and RECOVER credit from exact and broadcast-style estimators.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AgentCreditBench — Exact-Oracle Credit Assignment Benchmark">
+    <meta name="twitter:description" content="Test turn-level credit estimators against exact policy advantages.">
+    <meta name="twitter:image" content="https://hectopascal.github.io/agent-credit-bench/results/recovery_credit.png">
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://hectopascal.github.io/agent-credit-bench/#software",
+            "name": "AgentCreditBench",
+            "alternateName": "agent-credit-bench",
+            "description": "Exact-oracle benchmark for turn-level credit assignment and advantage estimators in agentic reinforcement learning.",
+            "url": "https://hectopascal.github.io/agent-credit-bench/",
+            "codeRepository": "https://github.com/hectopascal/agent-credit-bench",
+            "version": "0.5.0",
+            "license": "https://spdx.org/licenses/MIT.html",
+            "programmingLanguage": "Python",
+            "runtimePlatform": "Python 3.10+",
+            "isAccessibleForFree": true,
+            "author": {
+              "@type": "Person",
+              "name": "Yi Yan Ng",
+              "email": "mailto:yiyan.ng.ml@gmail.com"
+            },
+            "keywords": [
+              "agentic reinforcement learning",
+              "turn-level credit assignment",
+              "advantage estimation",
+              "GRPO",
+              "RLOO",
+              "GAE",
+              "GiGPO",
+              "LLM agents"
+            ]
+          },
+          {
+            "@type": "Dataset",
+            "@id": "https://hectopascal.github.io/agent-credit-bench/#evidence",
+            "name": "AgentCreditBench benchmark results",
+            "description": "Committed CSV outputs for exact-oracle credit-assignment diagnostics.",
+            "license": "https://spdx.org/licenses/MIT.html",
+            "creator": {"@id": "https://hectopascal.github.io/agent-credit-bench/#software"},
+            "distribution": [
+              {
+                "@type": "DataDownload",
+                "encodingFormat": "text/csv",
+                "contentUrl": "https://hectopascal.github.io/agent-credit-bench/results/recovery_diagnostic.csv"
+              },
+              {
+                "@type": "DataDownload",
+                "encodingFormat": "text/csv",
+                "contentUrl": "https://hectopascal.github.io/agent-credit-bench/results/delayed_horizon_sweep.csv"
+              },
+              {
+                "@type": "DataDownload",
+                "encodingFormat": "text/csv",
+                "contentUrl": "https://hectopascal.github.io/agent-credit-bench/results/monte_carlo_convergence.csv"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="AgentCreditBench home">
+        <span class="wordmark-mark" aria-hidden="true">Aπ</span>
+        AgentCreditBench
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#diagnostic">Diagnostic</a>
+        <a href="#use">When to use</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/hectopascal/agent-credit-bench">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="eyebrow">Exact-oracle conformance tests for agentic RL</div>
+        <h1 id="hero-title">Know whether your credit estimator rewards the right turn.</h1>
+        <p class="hero-copy">
+          AgentCreditBench tests GRPO, RLOO, GAE, GiGPO, Monte Carlo, and custom
+          turn-level credit estimators against exact policy advantages in tiny,
+          reproducible finite-horizon environments.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#install">Run the benchmark</a>
+          <a class="button" href="https://github.com/hectopascal/agent-credit-bench/blob/main/docs/validation_report.md">Read the validation report</a>
+        </div>
+        <div class="install-peek" aria-label="Source installation command">
+          <span>Source install</span>
+          <code>git clone https://github.com/hectopascal/agent-credit-bench.git</code>
+        </div>
+      </section>
+
+      <aside class="proof-strip" aria-label="Project properties">
+        <span>Exact A<sup>π</sup>(s, a)</span>
+        <span>CPU-only core</span>
+        <span>Zero runtime dependencies</span>
+        <span>Python 3.10+</span>
+        <span>Framework conformance paths</span>
+      </aside>
+
+      <section class="section diagnostic" id="diagnostic" aria-labelledby="diagnostic-title">
+        <div class="section-heading">
+          <div class="kicker">The failure it catches</div>
+          <h2 id="diagnostic-title">A successful trajectory can still reward the mistake.</h2>
+          <p>
+            In <code>RecoveryEnv</code>, a poor first action can be repaired later.
+            On successful <code>BAD → RECOVER</code> trajectories, exact advantage
+            assigns opposite signs. Outcome-broadcast methods do not.
+          </p>
+        </div>
+
+        <div class="diagnostic-layout">
+          <figure class="plot-card">
+            <img src="results/recovery_credit.png" width="1050" height="675" loading="eager" alt="Recovery diagnostic. Exact advantage assigns negative credit to BAD and positive credit to RECOVER. Broadcast, batch-centered, GRPO-style, and GiGPO-style estimators assign both actions positive credit on selected successful trajectories.">
+            <figcaption>
+              Selected successful paths only. GiGPO separates the magnitudes,
+              but still gives BAD positive credit on this slice.
+            </figcaption>
+          </figure>
+
+          <div class="value-card">
+            <table>
+              <caption>Mean turn credit on selected successful paths</caption>
+              <thead>
+                <tr><th>Estimator</th><th>BAD</th><th>RECOVER</th></tr>
+              </thead>
+              <tbody>
+                <tr class="oracle"><th>Exact oracle</th><td>−0.25</td><td>+0.50</td></tr>
+                <tr><th>Outcome broadcast</th><td>+1.00</td><td>+1.00</td></tr>
+                <tr><th>GRPO-style</th><td>+0.58</td><td>+0.58</td></tr>
+                <tr><th>GiGPO-style</th><td>+1.15</td><td>+1.57</td></tr>
+              </tbody>
+            </table>
+            <p class="caveat">
+              This is a conditional identification diagnostic—not, by itself,
+              evidence of a biased expected policy gradient. AgentCreditBench
+              reports both questions separately.
+            </p>
+            <a class="text-link" href="results/recovery_diagnostic.csv">Download the underlying CSV <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section questions" aria-labelledby="questions-title">
+        <div class="section-heading compact">
+          <div class="kicker">Two questions, not one score</div>
+          <h2 id="questions-title">Credit fidelity and gradient validity are different.</h2>
+        </div>
+        <div class="question-grid">
+          <article>
+            <div class="question-number">01</div>
+            <h3>Did the estimator identify the right action?</h3>
+            <p>Compare its literal turn credit with exact advantage.</p>
+            <ul>
+              <li>RMSE and centered RMSE</li>
+              <li>Spearman rank correlation</li>
+              <li>Sign accuracy</li>
+              <li>Zero-credit leakage</li>
+            </ul>
+          </article>
+          <article>
+            <div class="question-number">02</div>
+            <h3>Does it induce the right training signal?</h3>
+            <p>Compare the expected tabular-softmax policy gradient.</p>
+            <ul>
+              <li>Mean-gradient cosine</li>
+              <li>Relative mean-gradient error</li>
+              <li>Gradient variance</li>
+              <li>Normalized gradient MSE</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section use" id="use" aria-labelledby="use-title">
+        <div class="section-heading">
+          <div class="kicker">When to use AgentCreditBench</div>
+          <h2 id="use-title">A small test bench before a large training run.</h2>
+        </div>
+        <div class="use-grid">
+          <ul class="check-list">
+            <li>Validate a turn-level or step-level credit estimator against exact policy advantages.</li>
+            <li>Test whether GRPO, RLOO, GAE, GiGPO, or custom code leaks credit onto irrelevant turns.</li>
+            <li>Separate per-action credit quality from expected policy-gradient validity.</li>
+            <li>Run conformance checks against verl, TRL, OpenRLHF, and verifiers integrations.</li>
+          </ul>
+          <div class="boundary-card">
+            <h3>Deliberately out of scope</h3>
+            <p>
+              End-to-end learning quality, function approximation, token-level
+              policies, PPO clipping, learned critics, off-policy correction,
+              and stochastic reward models. Tiny tabular MDPs are the point:
+              they make the answer exact.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section environments" aria-labelledby="env-title">
+        <div class="section-heading compact">
+          <div class="kicker">Three tiny environments, exact answers</div>
+          <h2 id="env-title">Each isolates one credit-assignment pathology.</h2>
+        </div>
+        <div class="env-grid">
+          <article>
+            <span class="env-index">E1</span>
+            <h3>DelayedEffectEnv</h3>
+            <p>One consequential action, followed by irrelevant distractor turns with exactly zero advantage.</p>
+            <strong>Tests delayed leakage</strong>
+          </article>
+          <article>
+            <span class="env-index">E2</span>
+            <h3>RecoveryEnv</h3>
+            <p>An early mistake can be repaired by a later action, separating contribution from outcome.</p>
+            <strong>Tests repair credit</strong>
+          </article>
+          <article>
+            <span class="env-index">E3</span>
+            <h3>VariableHorizonEnv</h3>
+            <p>STOP or CONTINUE at every turn, with the value of continuing changing over time.</p>
+            <strong>Tests active-set baselines</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="section implementations" aria-labelledby="implementations-title">
+        <div class="section-heading compact">
+          <div class="kicker">Test the estimator you actually run</div>
+          <h2 id="implementations-title">Transparent references plus pinned framework paths.</h2>
+          <p>
+            Start with pure-Python reference estimators, then score adapters that
+            call or fingerprint the released advantage code in production RL stacks.
+          </p>
+        </div>
+        <div class="chip-groups">
+          <div>
+            <h3>Core estimators</h3>
+            <p><span>Exact oracle</span><span>Outcome broadcast</span><span>RLOO-style centering</span><span>TurnLOO</span><span>GRPO-style</span><span>GiGPO-style</span><span>Monte Carlo</span></p>
+          </div>
+          <div>
+            <h3>Framework paths</h3>
+            <p><span>verl 0.9.0</span><span>TRL 1.12.0</span><span>OpenRLHF 0.11.0</span><span>verifiers 0.1.14</span></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section evidence" id="evidence" aria-labelledby="evidence-title">
+        <div class="section-heading">
+          <div class="kicker">Evidence, not screenshots</div>
+          <h2 id="evidence-title">Every chart has committed data and a reproduction path.</h2>
+        </div>
+        <div class="evidence-grid">
+          <figure class="plot-card wide">
+            <img src="results/delayed_leakage.png" width="2250" height="675" loading="lazy" alt="Three-panel delayed-effect horizon sweep. Broadcast estimators keep roughly constant per-distractor leakage while total distractor credit and leakage fraction increase with horizon. Oracle leakage remains zero.">
+            <figcaption>
+              <strong>Delayed leakage.</strong> Per-distractor leakage stays
+              roughly constant while total irrelevant credit grows with horizon;
+              the leakage share approaches 0.97 at horizon 32.
+              <a href="results/delayed_horizon_sweep.csv">CSV</a>
+            </figcaption>
+          </figure>
+          <figure class="plot-card">
+            <img src="results/monte_carlo_convergence.png" width="1050" height="675" loading="lazy" alt="Log-log convergence curve. Monte Carlo advantage RMSE decreases from about 0.56 with one continuation to about 0.018 with 1,024 continuations, following an inverse-square-root reference rate.">
+            <figcaption>
+              <strong>Monte Carlo convergence.</strong> RMSE falls from 0.557
+              at one continuation to 0.0178 at 1,024, consistent with the
+              inverse-square-root sampling rate.
+              <a href="results/monte_carlo_convergence.csv">CSV</a>
+            </figcaption>
+          </figure>
+          <aside class="manifest">
+            <h3>Audit trail</h3>
+            <p>Claims are scoped to recorded policies, batch sizes, seeds, dependency versions, and reward layouts.</p>
+            <ul>
+              <li><a href="https://github.com/hectopascal/agent-credit-bench/blob/main/docs/validation_report.md">Validation report</a></li>
+              <li><a href="https://github.com/hectopascal/agent-credit-bench/tree/main/results">All figures and CSVs</a></li>
+              <li><a href="https://github.com/hectopascal/agent-credit-bench/tree/main/experiments">Reproduction scripts</a></li>
+              <li><a href="https://github.com/hectopascal/agent-credit-bench/tree/main/tests">Conformance tests</a></li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section install" id="install" aria-labelledby="install-title">
+        <div class="section-heading compact">
+          <div class="kicker">Run it locally</div>
+          <h2 id="install-title">Source install, CPU only.</h2>
+          <p>
+            The distribution is not on PyPI yet, so the canonical installation
+            path is the repository checkout. The core has no runtime dependencies.
+          </p>
+        </div>
+        <div class="code-grid">
+          <div>
+            <h3>Install and test</h3>
+            <pre><code>git clone https://github.com/hectopascal/agent-credit-bench.git
+cd agent-credit-bench
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+pytest</code></pre>
+          </div>
+          <div>
+            <h3>Score an estimator</h3>
+            <pre><code>from agent_credit_bench import run_benchmark, UniformPolicy
+from agent_credit_bench.envs import DelayedEffectEnv
+from agent_credit_bench.estimators import BatchCenteredBroadcast
+
+result = run_benchmark(
+    mdp=DelayedEffectEnv(horizon=16),
+    policy=UniformPolicy(),
+    estimator=BatchCenteredBroadcast(),
+    batch_size=1_000,
+    seeds=range(10),
+)
+print(result.mean_gradient_cosine)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section faq" aria-labelledby="faq-title">
+        <div class="section-heading compact">
+          <div class="kicker">Questions</div>
+          <h2 id="faq-title">What a good score does—and does not—mean.</h2>
+        </div>
+        <details>
+          <summary>Is AgentCreditBench an agent benchmark?</summary>
+          <p>No. It scores credit estimators, not trained agents. There is no learning loop in the core benchmark.</p>
+        </details>
+        <details>
+          <summary>Does exact credit guarantee better end-task performance?</summary>
+          <p>No. Passing these diagnostics is evidence that the estimator obeys specific credit and gradient contracts in controlled finite MDPs; it is not an end-to-end training claim.</p>
+        </details>
+        <details>
+          <summary>Why report identification and gradient metrics separately?</summary>
+          <p>Adding a state-dependent baseline can change literal credit values while preserving the expected policy gradient. One scalar cannot faithfully score both properties.</p>
+        </details>
+      </section>
+
+      <section class="section citation" aria-labelledby="citation-title">
+        <div>
+          <div class="kicker">Use and cite</div>
+          <h2 id="citation-title">Built to be inspected, extended, and cited.</h2>
+          <p>AgentCreditBench is MIT licensed. Citation metadata is available in both CFF and BibTeX form.</p>
+          <div class="citation-links">
+            <a class="button button-primary" href="https://github.com/hectopascal/agent-credit-bench/blob/main/CITATION.cff">CITATION.cff</a>
+            <a class="button" href="https://github.com/hectopascal/agent-credit-bench#citation">Copy BibTeX</a>
+          </div>
+        </div>
+        <pre><code>@software{yiyan2026agentcreditbench,
+  author  = {Yi Yan Ng},
+  title   = {{AgentCreditBench}: A Conformance-Test Suite
+             for Turn-Level Credit Estimators},
+  year    = {2026},
+  version = {0.5.0},
+  url     = {https://github.com/hectopascal/agent-credit-bench},
+  license = {MIT}
+}</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark" href="#top"><span class="wordmark-mark" aria-hidden="true">Aπ</span>AgentCreditBench</a>
+      <p>Exact-oracle conformance tests for turn-level credit assignment.</p>
+      <p><a href="https://github.com/hectopascal/agent-credit-bench">Source</a> · <a href="llms.txt">llms.txt</a> · <a href="https://github.com/hectopascal/agent-credit-bench/blob/main/LICENSE">MIT License</a></p>
+    </footer>
+  </body>
+</html>

@@ -20,7 +20,7 @@ from pathlib import Path
 
 STUBS = {
     "flash_attn/__init__.py": (
-        "# stub written by agent-credit-bench scripts/openrlhf_cpu_stubs.py\n"
+        "# stub written by AgentCreditBench scripts/openrlhf_cpu_stubs.py\n"
         "__version__ = '0.0.0+stub'\n"
     ),
     "flash_attn/bert_padding.py": (
@@ -34,7 +34,7 @@ STUBS = {
         "    raise RuntimeError('flash_attn stub: not available on CPU')\n"
     ),
     "vllm/__init__.py": (
-        "# stub written by agent-credit-bench scripts/openrlhf_cpu_stubs.py\n"
+        "# stub written by AgentCreditBench scripts/openrlhf_cpu_stubs.py\n"
         "__version__ = '0.0.0+stub'\n"
         "class SamplingParams:\n"
         "    pass\n"

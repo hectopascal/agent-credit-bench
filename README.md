@@ -2,12 +2,17 @@
 
 **Unit tests for turn-level credit assignment in agentic reinforcement learning.**
 
-AgentCreditBench evaluates credit estimators on tiny finite-horizon MDPs with exact policy-advantage oracles. 
+AgentCreditBench evaluates credit estimators on tiny finite-horizon MDPs with exact policy-advantage oracles.
 It tests two separate questions:
 - Does the estimator correctly identify which actions helped or hurt?
 - Does it still induce the correct policy-gradient signal?
 
-The core suite runs on CPU with zero runtime dependencies and includes integrations for verl, TRL and OpenRLHF.
+The core suite runs on CPU with zero runtime dependencies and includes
+conformance paths for verl, TRL, OpenRLHF, and verifiers.
+
+**[Explore the benchmark](https://hectopascal.github.io/agent-credit-bench/)** ·
+[Read the validation report](docs/validation_report.md) ·
+[View the committed evidence](results/)
 
 ## Why credit estimators need unit tests
 
@@ -63,10 +68,15 @@ credit-value interpretation from training-signal validity.
 
 ## Installation
 
+The package is not published on PyPI yet. Install it from the source checkout:
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"           # + pytest, ruff
-pip install -e ".[experiments]"   # + matplotlib, for the figures
+git clone https://github.com/hectopascal/agent-credit-bench.git
+cd agent-credit-bench
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"           # + pytest, ruff
+python -m pip install -e ".[experiments]"   # + matplotlib, for figures
 ```
 
 Zero runtime dependencies; Python >= 3.10.
@@ -126,7 +136,8 @@ tests), and [OpenRLHF](https://github.com/OpenRLHF/OpenRLHF)'s full
 reimplementations above:
 
 ```bash
-pip install "agent-credit-bench[verl]"   # or [trl]; torch CPU is sufficient
+# From the AgentCreditBench source checkout:
+python -m pip install -e ".[verl]"   # or .[trl]; torch CPU is sufficient
 python experiments/cross_framework_conformance.py
 ```
 
@@ -202,7 +213,12 @@ expected policy gradient, so a single scalar misgrades estimators:
 
 ## Results
 
-![leakage](results/delayed_leakage.png)
+![Three-panel delayed-effect diagnostic: per-distractor leakage stays constant while total distractor credit and leakage fraction rise with horizon; oracle leakage remains zero.](results/delayed_leakage.png)
+
+*Delayed-effect horizon sweep. Broadcast estimators place nonzero credit on
+irrelevant turns: per-turn leakage stays roughly constant, total distractor
+credit grows with horizon, and its share approaches 0.97. Exact oracle credit
+remains zero.*
 
 Under the default protocol (uniform policy, batch 1,000, seeds 0–9,
 `p_good=0.8`, `p_bad=0.2`), the two unnormalized broadcasts,
@@ -215,15 +231,32 @@ horizon 32. GRPO- and GiGPO-style normalization changes the numerical scale
 across irrelevant turns. The oracle is exactly zero on all three leakage
 measures.
 
-![recovery](results/recovery_credit.png)
+![Recovery diagnostic: only the oracle gives BAD negative credit; broadcast, GRPO-style, and GiGPO-style estimators give both BAD and RECOVER positive credit on selected successful paths.](results/recovery_credit.png)
+
+*Selected successful `BAD -> RECOVER` trajectories. Exact advantage assigns
+−0.25 to BAD and +0.50 to RECOVER. Broadcast estimators credit both positively;
+GiGPO separates their magnitudes but still credits BAD positively on this
+selected slice.*
 
 The conditional-credit table above, as a figure. The accompanying CSV also
 reports mean credit over all BAD actions and batch-gradient alignment; the
 figure alone should not be read as an expected-gradient result.
 
-![variable horizon](results/variable_horizon_gradient.png)
-![per-turn bias](results/variable_horizon_turn_bias.png)
-![gradient-error frontier](results/variable_horizon_frontier.png)
+![Variable-horizon gradient diagnostics comparing direction, variance, empirical mean error, and normalized gradient MSE across stop probabilities and group sizes.](results/variable_horizon_gradient.png)
+
+*Variable-horizon gradient diagnostics compare direction, variance, relative
+mean error, and normalized gradient MSE across stop probabilities and batch
+sizes.*
+
+![Per-turn credit bias: trajectory-level centering is strongly mis-centered while TurnLOO and exact advantage remain near zero.](results/variable_horizon_turn_bias.png)
+
+*Per-turn credit bias reveals the timestep-dependent mis-centering hidden by a
+whole-trajectory baseline.*
+
+![TurnLOO versus trajectory-centering gradient-error heatmaps across horizons, stop probabilities, and group sizes; blue cells favor TurnLOO.](results/variable_horizon_frontier.png)
+
+*The gradient-error frontier shows where TurnLOO or trajectory centering has
+lower normalized finite-batch gradient MSE.*
 
 The original batch-500-only result hid a correctness bug: when no peer
 survived to a timestep, TurnLOO emitted zero and deleted that timestep's
@@ -246,7 +279,10 @@ win. Full protocols and numbers are in
 old-versus-corrected reproduction is committed as
 `results/turn_loo_fallback_audit.csv`.
 
-![mc convergence](results/monte_carlo_convergence.png)
+![Monte Carlo advantage RMSE falls at the expected inverse-square-root rate as continuation samples increase.](results/monte_carlo_convergence.png)
+
+*Monte Carlo advantage converges toward the exact oracle at the expected
+inverse-square-root sampling rate.*
 
 Across seeds 0–29 (uniform policy, batch 200, horizon 8, `p_good=0.8`,
 `p_bad=0.2`), K=256 continuation samples for each cached `Q(t,s,a)` and
@@ -315,7 +351,7 @@ that is what makes the ground truth exact.
 
 ## Citation
 
-If you use Agent Credit Bench in research, please cite the software:
+If you use AgentCreditBench in research, please cite the software:
 
 ```bibtex
 @software{yiyan2026agentcreditbench,

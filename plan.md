@@ -1,4 +1,4 @@
-# Agent Credit Bench — Project Plan
+# AgentCreditBench — Project Plan
 
 > **Historical design document.** This plan records the original `v0.1`
 > sequence, hypotheses, and stopping conditions; the repository has since been
@@ -19,7 +19,7 @@
 
 ## 1. Project thesis
 
-**Agent Credit Bench is a CPU-first conformance-test suite for turn-level credit estimators in agentic reinforcement learning.**
+**AgentCreditBench is a CPU-first conformance-test suite for turn-level credit estimators in agentic reinforcement learning.**
 
 It evaluates estimators on tiny finite-horizon MDPs where the exact on-policy advantage of every sampled action can be calculated using backward dynamic programming.
 

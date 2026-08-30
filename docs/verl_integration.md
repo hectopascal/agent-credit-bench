@@ -6,7 +6,8 @@
 verl training runs, not this repo's "-style" reimplementations.
 
 ```bash
-pip install "agent-credit-bench[verl]"   # torch CPU is sufficient
+# From the AgentCreditBench source checkout:
+python -m pip install -e ".[verl]"   # torch CPU is sufficient
 python experiments/verl_conformance.py
 pytest tests/test_verl_integration.py
 ```

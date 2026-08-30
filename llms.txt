@@ -1,0 +1,51 @@
+# AgentCreditBench
+
+> Exact-oracle conformance tests for turn-level credit assignment in agentic reinforcement learning.
+
+Canonical project name: AgentCreditBench
+Python distribution: agent-credit-bench
+Python package: agent_credit_bench
+Current source version: 0.5.0
+Install status: source checkout; the distribution is not currently published on PyPI
+License: MIT
+Author: Yi Yan Ng <yiyan.ng.ml@gmail.com>
+
+## Start here
+
+- [Explainer](https://hectopascal.github.io/agent-credit-bench/)
+- [Source and API quick start](https://github.com/hectopascal/agent-credit-bench)
+- [Validation report](https://github.com/hectopascal/agent-credit-bench/blob/main/docs/validation_report.md)
+- [Citation metadata](https://github.com/hectopascal/agent-credit-bench/blob/main/CITATION.cff)
+
+## What it evaluates
+
+AgentCreditBench compares estimator-produced turn credit with exact policy
+advantages and separately evaluates the induced expected policy-gradient signal.
+It includes transparent references for outcome broadcast, RLOO-style centering,
+TurnLOO, GRPO-style normalization, GiGPO-style hierarchical credit, Monte Carlo
+advantage, and exact advantage. Optional conformance paths cover released code
+from verl, TRL, OpenRLHF, and verifiers.
+
+## When to use
+
+- Validate a turn-level or step-level credit estimator against exact advantages.
+- Detect credit assigned to irrelevant turns or repaired mistakes.
+- Distinguish literal credit quality from expected-gradient validity.
+- Check framework implementations against a small, reproducible oracle.
+
+## Scope
+
+The core benchmark uses tiny finite-horizon tabular Markov environments,
+gamma=1, exact backward induction, and zero runtime dependencies. It does not
+claim end-to-end training improvements or cover learned critics, token-level
+credit, PPO clipping, function approximation, off-policy updates, or stochastic
+reward models.
+
+## Evidence
+
+- [Recovery diagnostic CSV](https://github.com/hectopascal/agent-credit-bench/blob/main/results/recovery_diagnostic.csv)
+- [Delayed-effect sweep CSV](https://github.com/hectopascal/agent-credit-bench/blob/main/results/delayed_horizon_sweep.csv)
+- [Variable-horizon sweep CSV](https://github.com/hectopascal/agent-credit-bench/blob/main/results/variable_horizon_sweep.csv)
+- [Monte Carlo convergence CSV](https://github.com/hectopascal/agent-credit-bench/blob/main/results/monte_carlo_convergence.csv)
+- [Reproduction scripts](https://github.com/hectopascal/agent-credit-bench/tree/main/experiments)
+- [Test suite](https://github.com/hectopascal/agent-credit-bench/tree/main/tests)

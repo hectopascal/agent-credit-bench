@@ -29,7 +29,8 @@ evaluation. The executed action, parse status, and policy are logged.
 ## Quick eval
 
 ```bash
-pip install "agent-credit-bench[verifiers]"
+# From the AgentCreditBench source checkout:
+python -m pip install -e ".[verifiers]"
 ```
 
 ```python

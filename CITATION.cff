@@ -2,11 +2,28 @@ cff-version: 1.2.0
 message: "If you use AgentCreditBench in your research, please cite this software."
 title: "AgentCreditBench: A Conformance-Test Suite for Turn-Level Credit Estimators"
 type: software
+abstract: >-
+  AgentCreditBench is a CPU-first conformance-test suite for turn-level credit
+  assignment in agentic reinforcement learning. It compares GRPO, RLOO, GAE,
+  GiGPO, Monte Carlo, and custom estimator outputs with exact policy advantages
+  on tiny finite-horizon Markov decision processes, and separately evaluates
+  the induced policy-gradient signal.
 authors:
   - name: "Yi Yan Ng"
     email: "yiyan.ng.ml@gmail.com"
 repository-code: "https://github.com/hectopascal/agent-credit-bench"
-url: "https://github.com/hectopascal/agent-credit-bench"
+url: "https://hectopascal.github.io/agent-credit-bench/"
 version: 0.5.0
 date-released: 2026-08-29
 license: MIT
+keywords:
+  - agentic reinforcement learning
+  - turn-level credit assignment
+  - advantage estimation
+  - policy gradient
+  - GRPO
+  - RLOO
+  - GAE
+  - GiGPO
+  - LLM agents
+  - benchmark

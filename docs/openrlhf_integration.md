@@ -19,10 +19,10 @@ OpenRLHF ships Linux-x86_64 wheels only, and a full install drags in vllm
 and flash-attn, which need CUDA. For CPU conformance scoring:
 
 ```bash
-pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
-pip install openrlhf==0.11.0 --no-deps
-pip install -r requirements/openrlhf-cpu.txt
-pip install agent-credit-bench
+python -m pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
+python -m pip install openrlhf==0.11.0 --no-deps
+python -m pip install -r requirements/openrlhf-cpu.txt
+python -m pip install -e .   # from the AgentCreditBench source checkout
 python scripts/openrlhf_cpu_stubs.py   # import-time stubs for flash_attn/vllm
 pytest tests/test_openrlhf_integration.py
 ```
