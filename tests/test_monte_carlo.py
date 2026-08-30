@@ -6,8 +6,10 @@ deterministic; tolerances are generous anyway.
 
 import math
 
+from agent_credit_bench.envs import RecoveryEnv
 from agent_credit_bench.estimators import EstimatorContext, MonteCarloAdvantage
 from agent_credit_bench.oracle import solve_exact_values
+from agent_credit_bench.policy import UniformPolicy
 from agent_credit_bench.sampling import sample_trajectories
 from helpers import stochastic_case, two_step_case
 
@@ -38,6 +40,17 @@ def test_matches_oracle_with_many_rollouts():
 def test_two_step_case_close_to_exact():
     mdp, policy = two_step_case()
     assert _mc_error(mdp, policy, num_rollouts=1000) < 0.1
+
+
+def test_rollouts_stop_after_an_early_terminal_transition():
+    assert (
+        _mc_error(
+            RecoveryEnv(),
+            UniformPolicy(),
+            num_rollouts=512,
+        )
+        < 0.1
+    )
 
 
 def test_error_shrinks_with_more_rollouts():

@@ -55,10 +55,13 @@ def test_spearman_uses_ranks_for_nonlinear_monotonic_data():
     ) == pytest.approx(1.0)
 
 
-def test_spearman_handles_ties():
-    value = spearman([1.0, 1.0, 2.0], [1.0, 2.0, 3.0])
-    assert -1.0 < value < 1.0
-    assert math.isfinite(value)
+def test_spearman_uses_average_ranks_for_ties():
+    # Average ranks give -1/6; minimum ranks would give about -0.7763.
+    value = spearman(
+        [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0],
+        [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 0.0],
+    )
+    assert value == pytest.approx(-1 / 6)
 
 
 def test_sign_accuracy_hand_calculation():

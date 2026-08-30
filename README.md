@@ -324,6 +324,9 @@ GitHub-compatible citation metadata is also provided in `CITATION.cff`.
 - Kool et al., *Buy 4 REINFORCE Samples, Get a Baseline for Free!* (leave-
   one-out baselines), 2019.
 - Shao et al., *DeepSeekMath* (GRPO), 2024.
+- Feng et al., [*Group-in-Group Policy Optimization for LLM Agent
+  Training*](https://papers.neurips.cc/paper_files/paper/2025/file/420c9f777c0b4f78d515e53cf74d58b2-Paper-Conference.pdf)
+  (GiGPO), NeurIPS 2025.
 - Osband et al., *Behaviour Suite for Reinforcement Learning* (bsuite), 2019
   — structurally similar diagnostics that score agents, not estimators.
 - Surveys and methods for turn-level credit assignment in agentic LLM RL

@@ -4,7 +4,11 @@ import statistics
 
 import pytest
 
-from agent_credit_bench.envs import DelayedEffectEnv
+from agent_credit_bench.envs import (
+    DelayedEffectEnv,
+    StopProbabilityPolicy,
+    VariableHorizonEnv,
+)
 from agent_credit_bench.estimators import (
     BatchCenteredBroadcast,
     EstimatorContext,
@@ -73,6 +77,83 @@ def test_grpo_style_constant_returns_give_zero_credit():
     )
     credits = GRPOStyleNormalized().estimate(context)
     assert credits == ((0.0,), (0.0,))
+
+
+def test_gigpo_episode_level_term_and_population_std_hand_calculation():
+    # Returns 1, 0, 1: the episode term must match the population-normalized
+    # GRPO term, and the default estimator must add the identical step term.
+    context = bandit_batch()
+    episode_only = GiGPOStyle(step_weight=0.0).estimate(context)
+    combined = GiGPOStyle().estimate(context)
+    returns = [1.0, 0.0, 1.0]
+    mean = statistics.fmean(returns)
+    population_std = statistics.pstdev(returns)
+    expected = [(value - mean) / (population_std + 1e-4) for value in returns]
+
+    assert population_std != pytest.approx(statistics.stdev(returns))
+    for index, z_score in enumerate(expected):
+        assert episode_only[index][0] == pytest.approx(z_score)
+        assert combined[index][0] == pytest.approx(2.0 * z_score)
+
+
+def _variable_horizon_gigpo_context(
+    continue_reward: float,
+) -> EstimatorContext:
+    env = VariableHorizonEnv(
+        stop_rewards=(0.0, 2.0, 1.0),
+        continue_reward=continue_reward,
+    )
+    trajectories = (
+        Trajectory((Step(0, "alive", "STOP", 0.0, "done", True),)),
+        Trajectory(
+            (
+                Step(0, "alive", "CONTINUE", continue_reward, "alive", False),
+                Step(1, "alive", "STOP", 2.0, "done", True),
+            )
+        ),
+        Trajectory(
+            (
+                Step(0, "alive", "CONTINUE", continue_reward, "alive", False),
+                Step(1, "alive", "CONTINUE", continue_reward, "alive", False),
+                Step(2, "alive", "STOP", 1.0, "done", True),
+            )
+        ),
+    )
+    return EstimatorContext(
+        mdp=env,
+        policy=StopProbabilityPolicy(0.5),
+        trajectories=trajectories,
+    )
+
+
+def test_gigpo_groups_recurrent_anchor_state_across_timesteps():
+    context = _variable_horizon_gigpo_context(continue_reward=0.0)
+    credits = GiGPOStyle(episode_weight=0.0).estimate(context)
+    pooled_returns_to_go = [0.0, 2.0, 2.0, 1.0, 1.0, 1.0]
+    mean = statistics.fmean(pooled_returns_to_go)
+    std = statistics.pstdev(pooled_returns_to_go)
+    expected = (1.0 - mean) / (std + 1e-4)
+
+    # The same "alive" anchor and RTG=1 recur at t=0, 1, and 2. GiGPO pools
+    # them by state; grouping by (t, state) would make the t=2 singleton zero.
+    assert credits[2] == pytest.approx((expected, expected, expected))
+    assert expected != pytest.approx(0.0)
+
+
+def test_gigpo_uses_return_to_go_with_dense_rewards():
+    context = _variable_horizon_gigpo_context(continue_reward=1.0)
+    credits = GiGPOStyle(episode_weight=0.0).estimate(context)
+    pooled_returns_to_go = [0.0, 3.0, 2.0, 3.0, 2.0, 1.0]
+    mean = statistics.fmean(pooled_returns_to_go)
+    std = statistics.pstdev(pooled_returns_to_go)
+
+    def z_score(value: float) -> float:
+        return (value - mean) / (std + 1e-4)
+
+    # This trajectory's full return is 3 at both turns, while its true
+    # returns-to-go are 3 then 2. Replacing RTG with episode return fails.
+    assert credits[1] == pytest.approx((z_score(3.0), z_score(2.0)))
+    assert credits[1][0] != pytest.approx(credits[1][1])
 
 
 def test_gigpo_step_level_separates_latent_states():

@@ -10,7 +10,7 @@ notes were reconciled against the committed CSVs after regeneration.
 
 | Area | Validation performed | Result |
 | --- | --- | --- |
-| Core MDPs, oracle, estimators, metrics, bridges | Core-only pytest run | 110 passed; 37 optional-framework tests excluded from this count |
+| Core MDPs, oracle, estimators, metrics, bridges | Core-only pytest run | 118 passed; 37 optional-framework tests excluded from this count |
 | verl adapter | Targeted run against real verl 0.9.0 | 12 passed |
 | TRL adapter | Targeted run against real TRL 1.12.0 plus source fingerprints | 10 passed |
 | verifiers bridge | Targeted run against real verifiers 0.1.14 | 6 passed |
@@ -40,6 +40,36 @@ The corrected evidence is in `results/recovery_diagnostic.csv`. The bridge
 analysis is likewise scoped to the fitted finite-sample `(t, state)` Markov
 projection of logged action frequencies, not the original
 history-conditioned LLM policy.
+
+### GiGPO mechanics and related invariants are now directly pinned
+
+The GiGPO recovery results were correct but under-tested. Recomputing the
+README's equal-weighted 30-seed aggregate gives +1.1511 credit for BAD and
++1.5714 for RECOVER. Disabling the episode-level term gives +0.5756 and
++0.9958. The often-quoted +0.59/+1.01 counterfactual is seed 0 alone, not the
+README protocol; only the BAD value is halved, while RECOVER falls by about
+36.6%. A hand calculation now pins both the episode contribution and GiGPO's
+population-standard-deviation normalization. The two-level combination,
+state-keyed anchor groups, and suffix returns agree with the published GiGPO
+construction; this repository's `-style` variant deliberately fixes gamma to
+1 and a population-standard-deviation normalizer rather than claiming the
+paper's exact training constants.
+
+No fourth environment was needed to distinguish the other GiGPO mechanics.
+`VariableHorizonEnv` already revisits the `"alive"` state at multiple
+timesteps, and its configurable `continue_reward` supports genuinely dense
+rewards. Exact fixtures now distinguish state-only anchors from `(t, state)`
+anchors and suffix return-to-go from full episode return. The featured
+variable-horizon sweep still omits GiGPO, so this is implementation-conformance
+coverage rather than a new empirical comparison in the published figures.
+
+Monte Carlo continuation tests now include `RecoveryEnv`, where GOOD ends
+before the horizon, and therefore pin rollout termination. Spearman tie tests
+pin average ranks to an exact value rather than merely checking that the
+result lies between -1 and 1. The explicit empty-distribution validation
+branch remains for its clearer error message; deleting it is behaviorally
+equivalent because the subsequent sum-to-one check still rejects an empty
+distribution.
 
 ### TurnLOO's old no-peer fallback was biased
 
