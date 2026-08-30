@@ -1,8 +1,13 @@
 # agent-credit-bench
 
-AgentCreditBench is a lightweight conformance-test suite for turn-level credit
-estimators, using tiny finite-horizon MDPs where the exact policy advantage of
-every sampled action can be computed by backward induction.
+**Unit tests for turn-level credit assignment in agentic reinforcement learning.**
+
+AgentCreditBench evaluates credit estimators on tiny finite-horizon MDPs with exact policy-advantage oracles. 
+It tests two separate questions:
+- Does the estimator correctly identify which actions helped or hurt?
+- Does it still induce the correct policy-gradient signal?
+
+The core suite runs on CPU with zero runtime dependencies and includes integrations for verl, TRL and OpenRLHF.
 
 ## Why credit estimators need unit tests
 
@@ -301,7 +306,7 @@ If you use Agent Credit Bench in research, please cite the software:
 
 ```bibtex
 @software{yiyan2026agentcreditbench,
-  author  = {Yiyan},
+  author  = {Yi Yan Ng},
   title   = {{Agent Credit Bench}: A Conformance-Test Suite for Turn-Level Credit Estimators},
   year    = {2026},
   version = {0.5.0},

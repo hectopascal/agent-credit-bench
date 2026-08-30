@@ -3,7 +3,7 @@ message: "If you use Agent Credit Bench in your research, please cite this softw
 title: "Agent Credit Bench: A Conformance-Test Suite for Turn-Level Credit Estimators"
 type: software
 authors:
-  - name: "Yiyan"
+  - name: "Yi Yan Ng"
     email: "yiyan.ng.ml@gmail.com"
 repository-code: "https://github.com/hectopascal/agent-credit-bench"
 url: "https://github.com/hectopascal/agent-credit-bench"
