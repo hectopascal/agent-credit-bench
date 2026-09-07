@@ -24,13 +24,18 @@ episodes serialize to JSON losslessly.
 """
 
 import json
+import math
 import random
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from agent_credit_bench._validation import (
+    validate_positive_integer,
+    validated_transitions,
+)
 from agent_credit_bench.envs import DelayedEffectEnv, RecoveryEnv, VariableHorizonEnv
 from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.types import Action, State, Step, Trajectory
@@ -73,18 +78,31 @@ def render_state(
 def parse_action(text: str, actions: Sequence[Action]) -> Action | None:
     """Match the last legal action named in the reply, case-insensitively.
 
-    Last occurrence wins so models can reason before answering. Word-boundary
-    matching keeps STOP from matching inside STOPPING. Returns None when no
-    legal action appears.
+    A complete exact reply takes precedence. Otherwise the last nonoverlapping
+    mention wins, with longer labels taking precedence over contained labels.
+    Alphanumeric boundaries keep STOP from matching inside STOPPING while
+    allowing punctuation-bearing names such as C++. Returns None on failure.
     """
-    best: Action | None = None
-    best_position = -1
+    stripped = text.strip()
     for action in actions:
-        pattern = rf"\b{re.escape(str(action))}\b"
-        matches = list(re.finditer(pattern, text, flags=re.IGNORECASE))
-        if matches and matches[-1].start() > best_position:
-            best = action
-            best_position = matches[-1].start()
+        if stripped == str(action):
+            return action
+    for action in actions:
+        if stripped.casefold() == str(action).casefold():
+            return action
+    mentions = []
+    for action in actions:
+        pattern = rf"(?<!\w){re.escape(str(action))}(?!\w)"
+        mentions.extend(
+            (match.start(), match.end(), action)
+            for match in re.finditer(pattern, text, flags=re.IGNORECASE)
+        )
+    mentions.sort(key=lambda mention: (mention[0], -mention[1]))
+    best: Action | None = None
+    end = -1
+    for start, stop, action in mentions:
+        if start >= end:
+            best, end = action, stop
     return best
 
 
@@ -102,37 +120,60 @@ def minimum_return_action(
     reproducible without silently rewarding malformed output merely because a
     favorable action happened to be listed first.
     """
-    value_cache: dict[tuple[int, State], float] = {}
-
-    def action_value(at: int, at_state: State, action: Action) -> float:
-        total = 0.0
-        for transition in mdp.transitions(at, at_state, action):
-            terminal = transition.terminated or at + 1 >= mdp.horizon
-            future = 0.0 if terminal else state_value(at + 1, transition.next_state)
-            total += transition.probability * (transition.reward + future)
-        return total
-
-    def state_value(at: int, at_state: State) -> float:
-        key = (at, at_state)
-        if key not in value_cache:
-            legal = list(mdp.actions(at, at_state))
-            if not legal:
-                raise ValueError(
-                    f"no legal actions at (t={at}, state={at_state!r})"
-                )
-            value_cache[key] = min(
-                action_value(at, at_state, action) for action in legal
-            )
-        return value_cache[key]
-
     source_actions = actions if actions is not None else mdp.actions(timestep, state)
     legal_actions = list(source_actions)
     if not legal_actions:
         raise ValueError(f"no legal actions at (t={timestep}, state={state!r})")
+    values = _minimum_action_returns(mdp, timestep, state, worst_outcome=False)
+    return min(legal_actions, key=values.__getitem__)
+
+
+def minimum_episode_return(mdp: FiniteHorizonMDP) -> float:
+    """Lowest supported complete return, over actions AND stochastic outcomes.
+
+    Used as the truncation reward: abandoning an episode must not improve on
+    any legal completion, including in environments with negative rewards.
+    Zero-probability edges are excluded; early termination ends accumulation.
+    """
     return min(
-        legal_actions,
-        key=lambda action: action_value(timestep, state, action),
+        _minimum_action_returns(
+            mdp, 0, mdp.initial_state, worst_outcome=True
+        ).values()
     )
+
+
+def _minimum_action_returns(
+    mdp: FiniteHorizonMDP, timestep: int, state: State, *, worst_outcome: bool
+) -> dict[Action, float]:
+    validate_positive_integer(mdp.horizon, "mdp.horizon")
+    if not 0 <= timestep < mdp.horizon:
+        raise ValueError("timestep must be within the environment horizon")
+    future_values: dict[State, float] = {}
+    for at in range(mdp.horizon - 1, timestep - 1, -1):
+        state_values = {}
+        for at_state in ([state] if at == timestep else mdp.states_at(at)):
+            action_values = {}
+            for action in mdp.actions(at, at_state):
+                outcomes = []
+                for transition in validated_transitions(
+                    mdp.transitions(at, at_state, action), at, at_state, action
+                ):
+                    if transition.probability == 0.0:
+                        continue
+                    terminal = transition.terminated or at + 1 == mdp.horizon
+                    future = 0.0 if terminal else future_values[transition.next_state]
+                    value = transition.reward + future
+                    outcomes.append(
+                        value if worst_outcome else transition.probability * value
+                    )
+                action_values[action] = (
+                    min(outcomes) if worst_outcome else math.fsum(outcomes)
+                )
+            if not action_values:
+                raise ValueError(f"no legal actions at (t={at}, state={at_state!r})")
+            state_values[at_state] = min(action_values.values())
+        future_values = state_values
+    return action_values
 
 
 @dataclass(frozen=True)
@@ -199,7 +240,10 @@ class BridgeSession:
                 self.mdp, self.timestep, self.state, actions
             )
 
-        transitions = list(self.mdp.transitions(self.timestep, self.state, action))
+        transitions = validated_transitions(
+            self.mdp.transitions(self.timestep, self.state, action),
+            self.timestep, self.state, action,
+        )
         transition = self._rng.choices(
             transitions, weights=[tr.probability for tr in transitions]
         )[0]
@@ -230,7 +274,7 @@ class BridgeSession:
 
     @property
     def total_return(self) -> float:
-        return sum(turn.step.reward for turn in self._turns)
+        return self.trajectory.total_return
 
 
 def play_episode(
@@ -252,14 +296,55 @@ def play_episode(
     return session
 
 
+def _record_env_params(
+    mdp: FiniteHorizonMDP, env: str, metadata: dict[str, Any]
+) -> dict[str, Any]:
+    supplied = metadata.pop("env_params", None)
+    if supplied is not None and not isinstance(supplied, Mapping):
+        raise ValueError("env_params must be a parameter object")
+    if type(mdp) in (RecoveryEnv, DelayedEffectEnv, VariableHorizonEnv):
+        if ENVS.get(env) is not type(mdp):
+            raise ValueError(f"environment name {env!r} does not match the session MDP")
+        params = asdict(mdp)
+        if supplied is not None:
+            # Accept older callers' partial configurations when their defaults
+            # reconstruct the actual MDP; always write the complete configuration.
+            declared = asdict(make_env(env, **supplied))
+            if json.loads(json.dumps(declared, allow_nan=False)) != json.loads(
+                json.dumps(params, allow_nan=False)
+            ):
+                raise ValueError("env_params do not match the session MDP")
+    else:
+        if supplied is None:
+            raise ValueError("custom environments require explicit env_params metadata")
+        params = dict(supplied)
+    # Canonical JSON containers also turn tuple-valued rewards into lists.
+    return json.loads(json.dumps(params, allow_nan=False))
+
+
 def episode_record(
     session: BridgeSession, env: str, extra: Mapping[str, Any] | None = None
 ) -> dict[str, Any]:
-    """One finished episode as a JSON-serializable dict (one JSONL line)."""
+    """One finished episode as a JSON-serializable dict (one JSONL line).
+
+    Built-in environments include their full actual constructor parameters.
+    Custom MDPs require ``extra={"env_params": {...}}``. Extra metadata cannot
+    replace recorded fields; supplied built-in parameters must match the MDP.
+    """
     if not session.done:
         raise ValueError("episode is not finished")
+    metadata = dict(extra or {})
+    params = _record_env_params(session.mdp, env, metadata)
+    reserved = {"env", "parse_failure_policy", "total_return", "turns"}.intersection(
+        metadata
+    )
+    if reserved:
+        raise ValueError(
+            f"extra metadata cannot replace recorded fields: {sorted(reserved)}"
+        )
     return {
         "env": env,
+        "env_params": params,
         "parse_failure_policy": session.parse_failure_policy,
         "total_return": session.total_return,
         "turns": [
@@ -275,14 +360,75 @@ def episode_record(
             }
             for turn in session.turns
         ],
-        **(dict(extra) if extra else {}),
+        **metadata,
     }
 
 
-def trajectory_from_record(record: Mapping[str, Any]) -> Trajectory:
-    return Trajectory(
-        tuple(
-            Step(
+def _validate_logged_trajectory(mdp: FiniteHorizonMDP, trajectory: Trajectory) -> None:
+    validate_positive_integer(mdp.horizon, "mdp.horizon")
+    if not trajectory.steps:
+        raise ValueError("episode has no turns")
+    expected_state = mdp.initial_state
+    for index, step in enumerate(trajectory.steps):
+        prefix = f"turn {index}: "
+        if index >= mdp.horizon:
+            raise ValueError(prefix + "exceeds the environment horizon")
+        if type(step.timestep) is not int or step.timestep != index:
+            raise ValueError(prefix + f"timestep must be {index}")
+        if not isinstance(step.state, str) or step.state != expected_state:
+            raise ValueError(prefix + f"state must be {expected_state!r}")
+        if not isinstance(step.action, str) or step.action not in mdp.actions(
+            index, step.state
+        ):
+            raise ValueError(prefix + f"illegal action {step.action!r}")
+        if (
+            isinstance(step.reward, bool)
+            or not isinstance(step.reward, (int, float))
+            or not math.isfinite(step.reward)
+        ):
+            raise ValueError(prefix + "reward must be finite")
+        if type(step.terminated) is not bool:
+            raise ValueError(prefix + "terminated must be a boolean")
+        transitions = validated_transitions(
+            mdp.transitions(index, step.state, step.action),
+            index, step.state, step.action,
+        )
+        if not any(
+            tr.probability > 0.0
+            and tr.next_state == step.next_state
+            and tr.reward == step.reward
+            and tr.terminated == step.terminated
+            for tr in transitions
+        ):
+            raise ValueError(
+                prefix + "transition has no positive-probability MDP support"
+            )
+        if step.terminated and index != len(trajectory.steps) - 1:
+            raise ValueError(prefix + "episode continues after termination")
+        expected_state = step.next_state
+    if not trajectory.steps[-1].terminated and len(trajectory.steps) < mdp.horizon:
+        raise ValueError(f"turn {len(trajectory.steps) - 1}: episode is incomplete")
+
+
+def trajectory_from_record(
+    record: Mapping[str, Any], *, mdp: FiniteHorizonMDP | None = None
+) -> Trajectory:
+    """Deserialize a log, optionally validating it against its declared MDP.
+
+    With mdp supplied, rewards, transitions, chronology, completion, and the
+    recorded total must match stable summation or the legacy left-to-right sum.
+    Individual rewards match MDP support exactly. Horizon exhaustion counts as
+    completion even when the
+    last transition is not marked terminated. Callers scoring logs should
+    always supply mdp; omission retains the parsing-only compatibility path.
+    """
+    turns = record.get("turns")
+    if not isinstance(turns, (list, tuple)):
+        raise ValueError("turns must be a list")
+    steps = []
+    for index, turn in enumerate(turns):
+        try:
+            step = Step(
                 timestep=turn["timestep"],
                 state=turn["state"],
                 action=turn["action"],
@@ -290,9 +436,34 @@ def trajectory_from_record(record: Mapping[str, Any]) -> Trajectory:
                 next_state=turn["next_state"],
                 terminated=turn["terminated"],
             )
-            for turn in record["turns"]
-        )
-    )
+        except (KeyError, TypeError) as error:
+            raise ValueError(f"turn {index}: invalid step fields: {error}") from error
+        steps.append(step)
+    trajectory = Trajectory(tuple(steps))
+    if mdp is not None:
+        _validate_logged_trajectory(mdp, trajectory)
+        total = record.get("total_return")
+        # Python 3.12 changed built-in sum's float algorithm. Accept the old
+        # explicitly reconstructed sum, plus a two-ulp allowance around fsum
+        # for compensated producers; never use a reward-scale relative tolerance.
+        stable_total = trajectory.total_return
+        legacy_total = 0.0
+        for step in trajectory.steps:
+            legacy_total += step.reward
+        if (
+            isinstance(total, bool)
+            or not isinstance(total, (int, float))
+            or not math.isfinite(total)
+            or not (
+                total == legacy_total
+                or math.isclose(
+                    total, stable_total, rel_tol=0.0,
+                    abs_tol=2 * math.ulp(stable_total),
+                )
+            )
+        ):
+            raise ValueError("total_return must be finite and equal the sum of rewards")
+    return trajectory
 
 
 def load_episodes(paths: Iterable[str | Path]) -> list[dict[str, Any]]:

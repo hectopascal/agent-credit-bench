@@ -1,5 +1,6 @@
 """Core value types (plan.md §6.1, §6.3, §6.4)."""
 
+import math
 from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -32,7 +33,7 @@ class Trajectory:
 
     @property
     def total_return(self) -> float:
-        return sum(step.reward for step in self.steps)
+        return math.fsum(step.reward for step in self.steps)
 
 
 @dataclass(frozen=True)

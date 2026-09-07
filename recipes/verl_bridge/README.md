@@ -65,7 +65,7 @@ bot = lambda messages: rng.choice(["I pick GOOD.", "BAD, then I will fix it.", "
 with open("episodes.jsonl", "w") as f:
     for _ in range(500):
         s = play_episode(RecoveryEnv(), bot)
-        f.write(json.dumps(episode_record(s, env="recovery", extra={"env_params": {}})) + "\n")
+        f.write(json.dumps(episode_record(s, env="recovery")) + "\n")
 ```
 
 ```bash
@@ -74,6 +74,21 @@ python analyze_checkpoint.py episodes.jsonl
 
 Do not combine files produced with different `env_params`; the analyzer now
 fails closed instead of solving all trajectories against the last record's MDP.
+
+`episode_record` automatically records all constructor parameters for built-in
+environments, including defaults. Custom environments require explicit
+`extra={"env_params": {...}}` metadata. Older records with an explicit parameter
+object (including `{}` for defaults) remain supported. Records with missing or
+null `env_params` are rejected: restore the configuration from the original run
+before analyzing them. Only use `{}` when that run used the environment defaults.
+
+Before fitting the policy, the analyzer validates every episode against the
+declared MDP: initial state, consecutive turns and states, legal actions,
+positive-probability transition support, rewards, termination, and total return.
+Invalid logs are rejected with an episode and, where applicable, turn index.
+An episode is complete when it terminates or exhausts the environment horizon.
+For the same checks in Python, call `trajectory_from_record(record, mdp=mdp)`.
+Omitting `mdp` retains the parsing-only behavior for existing callers.
 
 ## Training run (template)
 
@@ -119,7 +134,9 @@ python analyze_checkpoint.py episodes/run1.jsonl --last 2000
 ```
 
 `--last N` windows the newest episodes, approximating "the current
-checkpoint's policy" as the log grows; `N` must be positive. For
+checkpoint's policy" as the log grows. At least two episodes must remain after
+windowing, so `N` must be at least 2. Smaller batches are rejected before
+analysis because the group-relative estimators require peers. For
 per-checkpoint precision, point
 `CREDIT_BENCH_EPISODES_PATH` at a fresh file per eval, or slice the log by
 line ranges.
@@ -140,6 +157,18 @@ line ranges.
   oracle for history-conditioned behavior.
 
 ## Validation status
+
+Truncated rollouts are omitted from episode logs and receive the environment's
+lowest supported complete return as their training reward. This includes dense
+rewards, early termination, and the worst positive-probability stochastic
+outcome. It prevents a zero truncation reward from beating valid negative-return
+episodes. `credit_bench_truncated` records the event, and discarded tokens never
+execute an action. This is an explicit failure penalty, not a completed episode
+return. Increase `response_length` if it occurs frequently.
+
+Episode totals use `math.fsum`. Analysis also accepts legacy left-to-right sums
+and differences within two ulps of the stable sum for cross-version log
+compatibility; individual rewards still require exact MDP support.
 
 Tested locally (no GPU): all bridge machinery (session, parsing,
 minimum-return fallback, serialization, Markov projection —

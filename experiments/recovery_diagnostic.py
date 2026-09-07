@@ -205,7 +205,7 @@ def main() -> None:
     ax.axhline(0.0, linewidth=0.8, color="black")
     ax.set_xticks(list(positions))
     ax.set_xticklabels(names, rotation=15)
-    ax.set_ylabel("mean credit on successful BAD -> RECOVER trajectories")
+    ax.set_ylabel("mean credit on successful\nBAD -> RECOVER trajectories")
     ax.set_title(
         f"Recovery diagnostic (batch={args.batch_size}, seeds={args.num_seeds})"
     )

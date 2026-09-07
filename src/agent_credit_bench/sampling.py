@@ -42,8 +42,9 @@ def sample_trajectories(
             probs = validated_policy_probabilities(policy, t, state, actions)
             action = rng.choices(actions, weights=[probs[a] for a in actions])[0]
 
-            transitions = list(mdp.transitions(t, state, action))
-            validated_transitions(transitions, t, state, action)
+            transitions = validated_transitions(
+                mdp.transitions(t, state, action), t, state, action
+            )
             transition = rng.choices(
                 transitions, weights=[tr.probability for tr in transitions]
             )[0]

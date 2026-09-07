@@ -10,7 +10,9 @@ This is what "approximate ground truth from extra rollouts" costs and buys:
 the whole point of the exact oracle is not needing this.
 
 Rollouts are seeded and results are cached per (t, s[, a]) within one
-estimate() call, so a call is deterministic for a given constructor seed.
+estimate() call. Standalone calls use the constructor seed. When the context
+supplies estimator_seed (as run_benchmark does), it is combined with the
+constructor seed to resample continuations reproducibly for each batch.
 """
 
 import random
@@ -27,6 +29,9 @@ from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.policy import Policy
 from agent_credit_bench.types import Action, State
 
+# None is a legal hashable action; only this private sentinel requests sampling.
+_SAMPLE_ACTION = object()
+
 
 def _rollout(
     mdp: FiniteHorizonMDP,
@@ -34,7 +39,7 @@ def _rollout(
     rng: random.Random,
     start_timestep: int,
     start_state: State,
-    first_action: Action | None,
+    first_action: Action = _SAMPLE_ACTION,
 ) -> float:
     """Return of one continuation from (t, s), optionally forcing the first action."""
     total = 0.0
@@ -42,11 +47,12 @@ def _rollout(
     action = first_action
     for t in range(start_timestep, mdp.horizon):
         actions = list(mdp.actions(t, state))
-        if action is None:
+        if action is _SAMPLE_ACTION:
             probs = validated_policy_probabilities(policy, t, state, actions)
             action = rng.choices(actions, weights=[probs[a] for a in actions])[0]
-        transitions = list(mdp.transitions(t, state, action))
-        validated_transitions(transitions, t, state, action)
+        transitions = validated_transitions(
+            mdp.transitions(t, state, action), t, state, action
+        )
         transition = rng.choices(
             transitions, weights=[tr.probability for tr in transitions]
         )[0]
@@ -54,7 +60,7 @@ def _rollout(
         if transition.terminated:
             break
         state = transition.next_state
-        action = None
+        action = _SAMPLE_ACTION
     return total
 
 
@@ -72,7 +78,10 @@ class MonteCarloAdvantage:
         self, context: EstimatorContext
     ) -> tuple[tuple[float, ...], ...]:
         mdp, policy = context.mdp, context.policy
-        rng = random.Random(self.seed)
+        rng = random.Random(
+            self.seed if context.estimator_seed is None else
+            f"agent-credit-bench:mc:v1:{self.seed}:{context.estimator_seed}"
+        )
         q_cache: dict[tuple[int, State, Action], float] = {}
         v_cache: dict[tuple[int, State], float] = {}
 
@@ -89,7 +98,7 @@ class MonteCarloAdvantage:
             key = (t, s)
             if key not in v_cache:
                 v_cache[key] = sum(
-                    _rollout(mdp, policy, rng, t, s, None)
+                    _rollout(mdp, policy, rng, t, s)
                     for _ in range(self.num_rollouts)
                 ) / self.num_rollouts
             return v_cache[key]

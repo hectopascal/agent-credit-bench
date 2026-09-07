@@ -41,10 +41,9 @@ def state_visitation(
             actions = mdp.actions(t, s)
             probs = validated_policy_probabilities(policy, t, s, actions)
             for a in actions:
-                transitions = mdp.transitions(t, s, a)
-                validated_transitions(transitions, t, s, a)
+                transitions = validated_transitions(mdp.transitions(t, s, a), t, s, a)
                 for tr in transitions:
-                    if tr.terminated:
+                    if tr.terminated or tr.probability == 0.0 or probs[a] == 0.0:
                         continue
                     key = (t + 1, tr.next_state)
                     visitation[key] = (
@@ -63,10 +62,11 @@ def exact_policy_gradient(
     """The exact policy gradient g* under the tabular softmax parameterization.
 
     g*[t,s,a'] = d(t,s) * sum_a pi(a|s) A(t,s,a) * (1[a'=a] - pi(a'|s))
-               = d(t,s) * pi(a'|s) * A(t,s,a')
+               = d(t,s) * pi(a'|s) * (A(t,s,a') - sum_a pi(a|s) A(t,s,a))
 
-    The simplification holds because sum_a pi(a|s) A(t,s,a) = 0 at every
-    state (the oracle invariant), which kills the cross term.
+    The cross term is mathematically zero for exact advantages, but retaining
+    it removes residual baseline shifts from floating-point rounding. Center
+    around a reference advantage to avoid cancellation under large shifts.
     """
     if visitation is None:
         visitation = state_visitation(mdp, policy)
@@ -74,8 +74,15 @@ def exact_policy_gradient(
     for (t, s), mass in visitation.items():
         actions = mdp.actions(t, s)
         probs = validated_policy_probabilities(policy, t, s, actions)
+        mean = math.fsum(probs[a] * values.advantages[(t, s, a)] for a in actions)
+        reference = min(
+            (values.advantages[(t, s, a)] for a in actions if probs[a] > 0.0),
+            key=lambda advantage: (abs(advantage - mean), advantage),
+        )
+        differences = {a: values.advantages[(t, s, a)] - reference for a in actions}
+        mean_difference = math.fsum(probs[a] * differences[a] for a in actions)
         for a in actions:
-            gradient[(t, s, a)] = mass * probs[a] * values.advantages[(t, s, a)]
+            gradient[(t, s, a)] = mass * probs[a] * (differences[a] - mean_difference)
     return gradient
 
 
@@ -107,7 +114,7 @@ def batch_gradient(
 
 
 def norm(gradient: GradientVector) -> float:
-    return math.sqrt(math.fsum(v * v for v in gradient.values()))
+    return math.hypot(*gradient.values())
 
 
 def cosine_similarity(
@@ -117,15 +124,21 @@ def cosine_similarity(
 
     A zero vector has no direction. Returning a numeric sentinel such as 0.0
     would incorrectly describe it as orthogonal to the other vector.
+    Nonfinite norms or cosine values raise ValueError rather than being clamped
+    into an apparently valid alignment score.
     """
     n1, n2 = norm(g1), norm(g2)
+    if not math.isfinite(n1) or not math.isfinite(n2):
+        raise ValueError("cosine similarity requires finite gradient norms")
     if n1 == 0.0 or n2 == 0.0:
         return None
     keys = set(g1) | set(g2)
-    dot = math.fsum(g1.get(k, 0.0) * g2.get(k, 0.0) for k in keys)
+    cosine = math.fsum((g1.get(k, 0.0) / n1) * (g2.get(k, 0.0) / n2) for k in keys)
+    if not math.isfinite(cosine):
+        raise ValueError("cosine similarity must be finite")
     # Roundoff can put an exactly aligned result a few ulps outside the
     # mathematical range (for example 1.0000000000000002).
-    return max(-1.0, min(1.0, dot / (n1 * n2)))
+    return max(-1.0, min(1.0, cosine))
 
 
 def mean_gradient(gradients: Sequence[GradientVector]) -> GradientVector:

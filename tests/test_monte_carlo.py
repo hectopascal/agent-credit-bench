@@ -5,13 +5,38 @@ deterministic; tolerances are generous anyway.
 """
 
 import math
+from dataclasses import replace
+
+import pytest
 
 from agent_credit_bench.envs import RecoveryEnv
 from agent_credit_bench.estimators import EstimatorContext, MonteCarloAdvantage
 from agent_credit_bench.oracle import solve_exact_values
 from agent_credit_bench.policy import UniformPolicy
 from agent_credit_bench.sampling import sample_trajectories
-from helpers import stochastic_case, two_step_case
+from agent_credit_bench.types import Transition
+from helpers import TableMDP, stochastic_case, two_step_case
+
+
+def test_none_is_a_legal_forced_action():
+    mdp = TableMDP(
+        horizon=1,
+        initial_state="s0",
+        table={
+            (0, "s0", None): (Transition("done", 1.0, 1.0, True),),
+            (0, "s0", "B"): (Transition("done", 0.0, 1.0, True),),
+        },
+    )
+    policy = UniformPolicy()
+    trajectories = sample_trajectories(mdp, policy, 20, seed=1)
+    assert {t.steps[0].action for t in trajectories} == {None, "B"}
+    credits = MonteCarloAdvantage(num_rollouts=4096, seed=31).estimate(
+        EstimatorContext(mdp=mdp, policy=policy, trajectories=trajectories)
+    )
+    exact = solve_exact_values(mdp, policy)
+    for trajectory, row in zip(trajectories, credits, strict=True):
+        action = trajectory.steps[0].action
+        assert row[0] == pytest.approx(exact.advantages[(0, "s0", action)], abs=0.05)
 
 
 def _mc_error(mdp, policy, num_rollouts, seed=0):
@@ -71,3 +96,19 @@ def test_shapes_and_determinism():
     assert first == second  # same constructor seed, same result
     for row, trajectory in zip(first, trajectories, strict=True):
         assert len(row) == len(trajectory.steps)
+
+
+def test_context_seed_varies_continuations_without_mutating_estimator():
+    mdp, policy = stochastic_case()
+    context = EstimatorContext(
+        mdp, policy, sample_trajectories(mdp, policy, 20, seed=2)
+    )
+    estimator = MonteCarloAdvantage(num_rollouts=16, seed=10)
+    standalone = estimator.estimate(context)
+    first_context = replace(context, estimator_seed=123)
+    first = estimator.estimate(first_context)
+    second = estimator.estimate(replace(context, estimator_seed=456))
+    assert first != second
+    assert first == estimator.estimate(first_context)
+    assert standalone == estimator.estimate(context)
+    assert first != replace(estimator, seed=11).estimate(first_context)

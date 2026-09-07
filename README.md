@@ -309,13 +309,20 @@ python experiments/monte_carlo_convergence.py
 
 ## Validation boundaries
 
-The complete 2026-08-30 rerun, corrected claims, exact dependency versions,
-and test evidence are recorded in
+The complete [2026-09-07 correctness rerun](docs/correctness_revalidation_2026-09-07.md)
+fixes seven further issues and reproduces the current study conclusions:
+six of eight CSVs are identical, and the other two change only at floating-point
+rounding scale (maximum absolute difference about 1e-15). The report records
+263 passing tests across compatible core/framework environments, dependency
+versions, and artifact hashes. Earlier claim corrections remain documented in
 [docs/validation_report.md](docs/validation_report.md).
 
 - Core tabular results use γ = 1 and exact backward induction under the
   supplied Markov policy. An external GAE adapter described as using an
   "exact critic" must use the same discount and reward layout.
+- Arithmetic uses Python floats. Advantages are computed from centered Q
+  differences to preserve small action gaps under large shared reward offsets;
+  they can differ from subtracting separately rounded Q and V outputs.
 - Optional integrations are version-sensitive. The extras pin verl 0.9.0,
   TRL 1.12.0, OpenRLHF 0.11.0, and verifiers 0.1.14. Tests skip rather than
   claim coverage when an extra is absent.
@@ -345,6 +352,15 @@ class MyEstimator:
 ```
 
 `run_benchmark` accepts it directly.
+
+For stochastic estimators, use `context.estimator_seed` to resample estimator
+randomness for each batch. The runner derives this seed deterministically from
+the trajectory seed using a separate seed namespace and includes it in each
+result row. Results for a given seed are independent of evaluation order.
+`MonteCarloAdvantage` combines the context seed with its constructor seed;
+standalone calls without a context seed retain their deterministic constructor
+seed behavior. Custom estimators that ignore the context seed report statistics
+conditional on whatever internal randomness they retain.
 
 ## Limitations
 

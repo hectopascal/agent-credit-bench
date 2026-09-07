@@ -5,6 +5,8 @@ families (§10.8): identification (is the credit literally an advantage?) and
 gradient validity (does it induce the right training signal?).
 """
 
+import hashlib
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -48,6 +50,7 @@ class SeedMetrics:
     sign_num_excluded: int
     leakage_ratio: float
     gradient_cosine: float | None  # undefined if either gradient is zero
+    estimator_seed: int | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +82,7 @@ class BenchmarkResult:
             {
                 "estimator": self.estimator,
                 "seed": m.seed,
+                "estimator_seed": m.estimator_seed,
                 "rmse": m.rmse,
                 "centered_rmse": m.centered_rmse,
                 "multi_visit_fraction": m.multi_visit_fraction,
@@ -110,6 +114,10 @@ def run_benchmark(
 
     Direction and relative-error metrics are ``None`` when their required
     gradient direction or nonzero exact-gradient scale does not exist.
+    Nonfinite estimator credits raise ValueError before metrics are computed.
+    Each batch gets a deterministic, separate estimator_seed in its context.
+    Stochastic estimators must honor it to sample their randomness across seeds;
+    custom estimators that ignore it retain conditional statistics.
     """
     validate_positive_integer(batch_size, "batch_size")
     seed_values = tuple(seeds)
@@ -128,9 +136,14 @@ def run_benchmark(
     all_exact: list[float] = []
 
     for seed in seed_values:
+        estimator_seed = int.from_bytes(
+            hashlib.sha256(f"agent-credit-bench:estimator:v1:{seed}".encode()).digest()[:8],
+            "big",
+        )
         trajectories = sample_trajectories(mdp, policy, batch_size, seed)
         context = EstimatorContext(
-            mdp=mdp, policy=policy, trajectories=trajectories
+            mdp=mdp, policy=policy, trajectories=trajectories,
+            estimator_seed=estimator_seed,
         )
         credits = estimator.estimate(context)
 
@@ -138,8 +151,16 @@ def run_benchmark(
         exact: list[float] = []
         keys: list[tuple[int, object]] = []
         timesteps: list[int] = []
-        for trajectory, row in zip(trajectories, credits, strict=True):
+        for trajectory_index, (trajectory, row) in enumerate(
+            zip(trajectories, credits, strict=True)
+        ):
             for step, credit in zip(trajectory.steps, row, strict=True):
+                if not math.isfinite(credit):
+                    raise ValueError(
+                        f"{estimator.name} must return finite credits; "
+                        f"got {credit!r} at seed {seed}, "
+                        f"trajectory {trajectory_index}, timestep {step.timestep}"
+                    )
                 estimated.append(credit)
                 exact.append(
                     values.advantages[(step.timestep, step.state, step.action)]
@@ -155,6 +176,7 @@ def run_benchmark(
         seed_metrics.append(
             SeedMetrics(
                 seed=seed,
+                estimator_seed=estimator_seed,
                 rmse=rmse(estimated, exact),
                 centered_rmse=centered.value,
                 multi_visit_fraction=centered.multi_visit_fraction,

@@ -1,0 +1,56 @@
+{
+  "verl_trl": {
+    "python": "3.11.16 (main, Aug 25 2026, 01:17:44) [GCC 14.2.0]",
+    "platform": "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "packages": {
+      "torch": "2.13.0+cpu",
+      "numpy": "2.3.5",
+      "pytest": "9.1.1",
+      "verl": "0.9.0",
+      "trl": "1.12.0",
+      "transformers": "5.10.4",
+      "tokenizers": "0.22.2",
+      "datasets": "5.0.1",
+      "deepspeed": "0.19.6",
+      "ray": "2.58.0",
+      "tensordict": "0.10.0",
+      "pandas": "3.0.5"
+    }
+  },
+  "openrlhf": {
+    "python": "3.11.16 (main, Aug 25 2026, 01:17:44) [GCC 14.2.0]",
+    "platform": "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "packages": {
+      "torch": "2.13.0+cpu",
+      "numpy": "2.3.5",
+      "pytest": "9.1.1",
+      "openrlhf": "0.11.0",
+      "transformers": "5.15.0",
+      "tokenizers": "0.22.2",
+      "datasets": "5.0.1",
+      "deepspeed": "0.19.5",
+      "ray": "2.55.0",
+      "pandas": "3.0.5"
+    }
+  },
+  "verifiers": {
+    "python": "3.11.16 (main, Aug 25 2026, 01:17:44) [GCC 14.2.0]",
+    "platform": "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "packages": {
+      "torch": "2.13.0+cpu",
+      "numpy": "2.3.5",
+      "pytest": "9.1.1",
+      "openrlhf": "0.11.0",
+      "verifiers": "0.1.14",
+      "transformers": "5.16.1",
+      "tokenizers": "0.23.1",
+      "datasets": "4.6.1",
+      "deepspeed": "0.19.6",
+      "ray": "2.58.0",
+      "pandas": "3.0.5"
+    }
+  }
+}

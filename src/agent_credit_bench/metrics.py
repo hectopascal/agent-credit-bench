@@ -1,6 +1,7 @@
 """Estimator metrics — identification family (plan.md §10).
 
 All functions take flat, aligned sequences: one entry per sampled step.
+Nonfinite estimated or exact values raise ValueError.
 Gradient-family metrics live in gradients.py.
 """
 
@@ -16,6 +17,10 @@ def _check_aligned(estimated: Sequence[float], exact: Sequence[float]) -> None:
         )
     if not estimated:
         raise ValueError("empty input")
+    for label, values in (("estimated", estimated), ("exact", exact)):
+        for index, value in enumerate(values):
+            if not math.isfinite(value):
+                raise ValueError(f"{label}[{index}] must be finite, got {value!r}")
 
 
 def rmse(estimated: Sequence[float], exact: Sequence[float]) -> float:

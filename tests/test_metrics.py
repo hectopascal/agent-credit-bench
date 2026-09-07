@@ -29,6 +29,27 @@ from agent_credit_bench.types import Transition
 from helpers import TableMDP, bandit_case, stochastic_case, two_step_case
 
 
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+@pytest.mark.parametrize("side", ["estimated", "exact"])
+@pytest.mark.parametrize(
+    "metric",
+    [
+        rmse,
+        spearman,
+        sign_accuracy,
+        leakage,
+        lambda e, a: centered_rmse(e, a, ["s", "s", "s"]),
+        lambda e, a: per_turn_stats([0, 0, 0], e, a),
+    ],
+    ids=["rmse", "spearman", "sign", "leakage", "centered_rmse", "per_turn"],
+)
+def test_metrics_reject_nonfinite_inputs(metric, side, value):
+    inputs = {"estimated": [-1.0, 0.0, 1.0], "exact": [-1.0, 0.0, 1.0]}
+    inputs[side][1] = value
+    with pytest.raises(ValueError, match=rf"{side}\[1\].*finite"):
+        metric(inputs["estimated"], inputs["exact"])
+
+
 def test_rmse_hand_calculation():
     assert rmse([1.0, 2.0], [0.0, 0.0]) == pytest.approx(math.sqrt(2.5))
 
@@ -129,6 +150,15 @@ def test_gradient_variance_uses_population_denominator():
     gradients = [{key: 0.0}, {key: 2.0}]
     # The mean is 1 and E[(g - mean)^2] = (1 + 1) / 2 = 1.
     assert gradient_variance(gradients) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+@pytest.mark.parametrize("other", [0.0, 1.0])
+def test_cosine_rejects_nonfinite_gradients(value, other):
+    key = (0, "s0", "A")
+    for left, right in ((value, other), (other, value)):
+        with pytest.raises(ValueError, match="finite"):
+            cosine_similarity({key: left}, {key: right})
 
 
 def test_visitation_two_step_case():

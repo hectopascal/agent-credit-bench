@@ -1,0 +1,102 @@
+
+Fontconfig error: No writable cache directories
+	/opt/homebrew/var/cache/fontconfig
+	/Users/yan/.cache/fontconfig
+	/Users/yan/.fontconfig
+2026-09-07 00:42:07.732 system_profiler[5524:15326323] XType: Using static font registry.
+Matplotlib is building the font cache; this may take a moment.
+[1/90] horizon=3, batch=2, stop_probability=0.2: done
+[2/90] horizon=3, batch=2, stop_probability=0.35: done
+[3/90] horizon=3, batch=2, stop_probability=0.5: done
+[4/90] horizon=3, batch=2, stop_probability=0.65: done
+[5/90] horizon=3, batch=2, stop_probability=0.8: done
+[6/90] horizon=3, batch=4, stop_probability=0.2: done
+[7/90] horizon=3, batch=4, stop_probability=0.35: done
+[8/90] horizon=3, batch=4, stop_probability=0.5: done
+[9/90] horizon=3, batch=4, stop_probability=0.65: done
+[10/90] horizon=3, batch=4, stop_probability=0.8: done
+[11/90] horizon=3, batch=8, stop_probability=0.2: done
+[12/90] horizon=3, batch=8, stop_probability=0.35: done
+[13/90] horizon=3, batch=8, stop_probability=0.5: done
+[14/90] horizon=3, batch=8, stop_probability=0.65: done
+[15/90] horizon=3, batch=8, stop_probability=0.8: done
+[16/90] horizon=3, batch=32, stop_probability=0.2: done
+[17/90] horizon=3, batch=32, stop_probability=0.35: done
+[18/90] horizon=3, batch=32, stop_probability=0.5: done
+[19/90] horizon=3, batch=32, stop_probability=0.65: done
+[20/90] horizon=3, batch=32, stop_probability=0.8: done
+[21/90] horizon=3, batch=128, stop_probability=0.2: done
+[22/90] horizon=3, batch=128, stop_probability=0.35: done
+[23/90] horizon=3, batch=128, stop_probability=0.5: done
+[24/90] horizon=3, batch=128, stop_probability=0.65: done
+[25/90] horizon=3, batch=128, stop_probability=0.8: done
+[26/90] horizon=3, batch=500, stop_probability=0.2: done
+[27/90] horizon=3, batch=500, stop_probability=0.35: done
+[28/90] horizon=3, batch=500, stop_probability=0.5: done
+[29/90] horizon=3, batch=500, stop_probability=0.65: done
+[30/90] horizon=3, batch=500, stop_probability=0.8: done
+[31/90] horizon=5, batch=2, stop_probability=0.2: done
+[32/90] horizon=5, batch=2, stop_probability=0.35: done
+[33/90] horizon=5, batch=2, stop_probability=0.5: done
+[34/90] horizon=5, batch=2, stop_probability=0.65: done
+[35/90] horizon=5, batch=2, stop_probability=0.8: done
+[36/90] horizon=5, batch=4, stop_probability=0.2: done
+[37/90] horizon=5, batch=4, stop_probability=0.35: done
+[38/90] horizon=5, batch=4, stop_probability=0.5: done
+[39/90] horizon=5, batch=4, stop_probability=0.65: done
+[40/90] horizon=5, batch=4, stop_probability=0.8: done
+[41/90] horizon=5, batch=8, stop_probability=0.2: done
+[42/90] horizon=5, batch=8, stop_probability=0.35: done
+[43/90] horizon=5, batch=8, stop_probability=0.5: done
+[44/90] horizon=5, batch=8, stop_probability=0.65: done
+[45/90] horizon=5, batch=8, stop_probability=0.8: done
+[46/90] horizon=5, batch=32, stop_probability=0.2: done
+[47/90] horizon=5, batch=32, stop_probability=0.35: done
+[48/90] horizon=5, batch=32, stop_probability=0.5: done
+[49/90] horizon=5, batch=32, stop_probability=0.65: done
+[50/90] horizon=5, batch=32, stop_probability=0.8: done
+[51/90] horizon=5, batch=128, stop_probability=0.2: done
+[52/90] horizon=5, batch=128, stop_probability=0.35: done
+[53/90] horizon=5, batch=128, stop_probability=0.5: done
+[54/90] horizon=5, batch=128, stop_probability=0.65: done
+[55/90] horizon=5, batch=128, stop_probability=0.8: done
+[56/90] horizon=5, batch=500, stop_probability=0.2: done
+[57/90] horizon=5, batch=500, stop_probability=0.35: done
+[58/90] horizon=5, batch=500, stop_probability=0.5: done
+[59/90] horizon=5, batch=500, stop_probability=0.65: done
+[60/90] horizon=5, batch=500, stop_probability=0.8: done
+[61/90] horizon=8, batch=2, stop_probability=0.2: done
+[62/90] horizon=8, batch=2, stop_probability=0.35: done
+[63/90] horizon=8, batch=2, stop_probability=0.5: done
+[64/90] horizon=8, batch=2, stop_probability=0.65: done
+[65/90] horizon=8, batch=2, stop_probability=0.8: done
+[66/90] horizon=8, batch=4, stop_probability=0.2: done
+[67/90] horizon=8, batch=4, stop_probability=0.35: done
+[68/90] horizon=8, batch=4, stop_probability=0.5: done
+[69/90] horizon=8, batch=4, stop_probability=0.65: done
+[70/90] horizon=8, batch=4, stop_probability=0.8: done
+[71/90] horizon=8, batch=8, stop_probability=0.2: done
+[72/90] horizon=8, batch=8, stop_probability=0.35: done
+[73/90] horizon=8, batch=8, stop_probability=0.5: done
+[74/90] horizon=8, batch=8, stop_probability=0.65: done
+[75/90] horizon=8, batch=8, stop_probability=0.8: done
+[76/90] horizon=8, batch=32, stop_probability=0.2: done
+[77/90] horizon=8, batch=32, stop_probability=0.35: done
+[78/90] horizon=8, batch=32, stop_probability=0.5: done
+[79/90] horizon=8, batch=32, stop_probability=0.65: done
+[80/90] horizon=8, batch=32, stop_probability=0.8: done
+[81/90] horizon=8, batch=128, stop_probability=0.2: done
+[82/90] horizon=8, batch=128, stop_probability=0.35: done
+[83/90] horizon=8, batch=128, stop_probability=0.5: done
+[84/90] horizon=8, batch=128, stop_probability=0.65: done
+[85/90] horizon=8, batch=128, stop_probability=0.8: done
+[86/90] horizon=8, batch=500, stop_probability=0.2: done
+[87/90] horizon=8, batch=500, stop_probability=0.35: done
+[88/90] horizon=8, batch=500, stop_probability=0.5: done
+[89/90] horizon=8, batch=500, stop_probability=0.65: done
+[90/90] horizon=8, batch=500, stop_probability=0.8: done
+wrote results/variable_horizon_sweep.csv
+wrote results/variable_horizon_turn_stats.csv
+wrote results/variable_horizon_gradient.png
+wrote results/variable_horizon_turn_bias.png
+wrote results/variable_horizon_frontier.png

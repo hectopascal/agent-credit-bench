@@ -121,11 +121,7 @@ class CreditBenchEnv(vf.MultiTurnEnv):
     def _log_episode(self, session: BridgeSession) -> None:
         if self.episodes_path is None:
             return
-        record = episode_record(
-            session,
-            env=self.env_name,
-            extra={"env_params": self.env_params},
-        )
+        record = episode_record(session, env=self.env_name)
         path = Path(self.episodes_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a") as f:

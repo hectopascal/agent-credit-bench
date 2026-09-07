@@ -129,7 +129,7 @@ def main() -> None:
     ax.set_xlabel("continuation samples per cached Q and V estimate")
     ax.set_ylabel("RMSE vs exact advantage")
     ax.set_title(
-        f"MC convergence, DelayedEffectEnv(horizon={args.horizon}), "
+        f"MC convergence, DelayedEffectEnv(horizon={args.horizon})\n"
         f"batch={args.batch_size}, seeds={args.num_seeds}"
     )
     ax.legend()

@@ -17,9 +17,10 @@ then merge them without recomputing:
 import argparse
 import csv
 import importlib.util
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError, distribution, version
 from pathlib import Path
 
+import agent_credit_bench
 from agent_credit_bench.envs.recovery import RecoveryEnv
 from agent_credit_bench.estimators import EstimatorContext, OracleAdvantage
 from agent_credit_bench.policy import UniformPolicy
@@ -49,6 +50,18 @@ def package_version(distribution: str) -> str:
         return "source-tree"
 
 
+def suite_version() -> str:
+    """Do not label a PYTHONPATH checkout with an unrelated installed version."""
+    try:
+        installed = distribution("agent-credit-bench")
+    except PackageNotFoundError:
+        return "source-tree"
+    installed_init = installed.locate_file("agent_credit_bench/__init__.py")
+    if Path(agent_credit_bench.__file__).resolve() != Path(installed_init).resolve():
+        return "source-tree"
+    return installed.version
+
+
 def estimator_provenance(name: str) -> tuple[str, str]:
     if name.startswith("verl_"):
         return "verl", package_version("verl")
@@ -56,7 +69,7 @@ def estimator_provenance(name: str) -> tuple[str, str]:
         return "trl", package_version("trl")
     if name.startswith("openrlhf_"):
         return "openrlhf", package_version("openrlhf")
-    return "agent-credit-bench", package_version("agent-credit-bench")
+    return "agent-credit-bench", suite_version()
 
 
 def build_estimators() -> tuple[list, list[str]]:

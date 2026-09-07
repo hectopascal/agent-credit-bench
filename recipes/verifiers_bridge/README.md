@@ -50,6 +50,11 @@ python recipes/verl_bridge/analyze_checkpoint.py episodes/eval.jsonl
 reports the empirical policy, parsed-rate, and every estimator's credit
 quality against exact advantages for the fitted finite-sample Markov
 projection. It rejects inputs that mix environments or `env_params`.
+New logs include all environment parameters automatically. Legacy logs must
+have an explicit `env_params` object; recover missing configurations from the
+original run before analysis.
+The analyzer also rejects episodes whose steps, rewards, completion, or recorded
+total return disagree with the declared MDP.
 
 ## Training
 

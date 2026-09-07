@@ -18,8 +18,10 @@ one running token sequence, mask 1 for generated tokens, observation turns
 rendered with remove_system_prompt=True plus the turn separator, mask 0.
 
 Episodes that exhaust response_length mid-game are dropped from the JSONL
-log (their return is not an episode return); size response_length so this
-stays rare.
+log (their return is not an episode return). Their training reward is the
+lowest supported complete return of the environment, including stochastic
+outcomes, so truncation cannot beat a legal completion. The metric
+credit_bench_truncated records this event; size response_length so it stays rare.
 """
 
 import json
@@ -38,6 +40,7 @@ from agent_credit_bench.integrations.bridge import (
     BridgeSession,
     episode_record,
     make_env,
+    minimum_episode_return,
     render_system_prompt,
 )
 
@@ -111,23 +114,25 @@ class CreditBenchBridgeLoop(AgentLoopBase):
                 truncated = True
                 break
 
-        self._log_episode(session, env_name, env_params, truncated)
+        self._log_episode(session, env_name, truncated)
 
         response_ids = prompt_ids[prompt_length:]
         return AgentLoopOutput(
             prompt_ids=prompt_ids[:prompt_length],
             response_ids=response_ids[: self.response_length],
             response_mask=response_mask[: self.response_length],
-            reward_score=0.0 if truncated else session.total_return,
+            reward_score=(
+                minimum_episode_return(session.mdp)
+                if truncated else session.total_return
+            ),
             num_turns=2 * len(session.turns) + 1,
-            metrics={},
+            metrics={"credit_bench_truncated": float(truncated)},
         )
 
     def _log_episode(
         self,
         session: BridgeSession,
         env_name: str,
-        env_params: dict[str, Any],
         truncated: bool,
     ) -> None:
         path = os.getenv(EPISODES_PATH_ENV)
@@ -136,9 +141,7 @@ class CreditBenchBridgeLoop(AgentLoopBase):
         if truncated or not session.done:
             logger.warning("dropping truncated episode (raise response_length)")
             return
-        record = episode_record(
-            session, env=env_name, extra={"env_params": env_params}
-        )
+        record = episode_record(session, env=env_name)
         # Line-buffered appends from concurrent actors: fine at these line
         # sizes on POSIX; point each run at its own file regardless.
         with open(path, "a") as handle:

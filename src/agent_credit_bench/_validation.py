@@ -2,6 +2,7 @@
 
 import math
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
 from agent_credit_bench.policy import Policy
 from agent_credit_bench.types import Action, State, Transition
@@ -43,7 +44,7 @@ def validated_policy_probabilities(
     state: State,
     actions: Sequence[Action],
 ) -> Mapping[Action, float]:
-    """Return a policy distribution after validating its available actions."""
+    """Validate available actions and normalize accepted probability roundoff."""
     if not actions:
         raise ValueError(
             f"no actions available at (t={timestep}, s={state!r})"
@@ -70,7 +71,8 @@ def validated_policy_probabilities(
     validate_probability_distribution(
         weights, f"policy probabilities at (t={timestep}, s={state!r})"
     )
-    return probabilities
+    total = math.fsum(weights)
+    return {action: probabilities[action] / total for action in actions}
 
 
 def validated_transitions(
@@ -79,12 +81,22 @@ def validated_transitions(
     state: State,
     action: Action,
 ) -> Sequence[Transition]:
-    """Return a transition distribution after validating every weight."""
+    """Validate every weight and normalize accepted probability roundoff.
+
+    All consumers must use the returned transitions, so weighted sampling and
+    exact expectations share the same distribution.
+    """
     validate_probability_distribution(
         [transition.probability for transition in transitions],
         f"transition probabilities at (t={timestep}, s={state!r}, a={action!r})",
     )
-    return transitions
+    total = math.fsum(transition.probability for transition in transitions)
+    if total == 1.0:
+        return transitions
+    return tuple(
+        replace(transition, probability=transition.probability / total)
+        for transition in transitions
+    )
 
 
 def validate_integer(value: int, description: str) -> None:

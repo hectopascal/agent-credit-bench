@@ -8,6 +8,7 @@ already done.
 from dataclasses import dataclass
 from typing import Protocol
 
+from agent_credit_bench._validation import validate_integer
 from agent_credit_bench.mdp import FiniteHorizonMDP
 from agent_credit_bench.policy import Policy
 from agent_credit_bench.types import Trajectory
@@ -18,6 +19,13 @@ class EstimatorContext:
     mdp: FiniteHorizonMDP
     policy: Policy
     trajectories: tuple[Trajectory, ...]
+    # Optional per-batch randomness for stochastic estimators. None preserves
+    # their standalone constructor-seed behavior.
+    estimator_seed: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.estimator_seed is not None:
+            validate_integer(self.estimator_seed, "estimator_seed")
 
 
 class CreditEstimator(Protocol):
@@ -31,5 +39,6 @@ class CreditEstimator(Protocol):
 
         output[i][t] is the estimated credit for
         context.trajectories[i].steps[t].
+        Stochastic estimators should honor context.estimator_seed when supplied.
         """
         ...

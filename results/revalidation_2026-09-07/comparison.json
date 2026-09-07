@@ -1,0 +1,283 @@
+{
+  "baseline_commit": "4f44b9bfcc7f4110851dfdc15abe6d3b93cd17b7",
+  "scope": "All eight existing study CSVs; identical schemas and row ordering verified. Numeric cells compared as serialized.",
+  "artifacts": [
+    {
+      "file": "results/cross_framework_recovery.csv",
+      "rows": 13,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "1d0e6b413358dbd691a66b1e301454d7a173044f5430f02733767e6fdb30777b",
+      "after_sha256": "1d0e6b413358dbd691a66b1e301454d7a173044f5430f02733767e6fdb30777b",
+      "changes": []
+    },
+    {
+      "file": "results/delayed_horizon_sweep.csv",
+      "rows": 250,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "85eeb480cdba5835181af6b15ef6592684d2a050ba44e748533e7821f20680f5",
+      "after_sha256": "85eeb480cdba5835181af6b15ef6592684d2a050ba44e748533e7821f20680f5",
+      "changes": []
+    },
+    {
+      "file": "results/monte_carlo_convergence.csv",
+      "rows": 180,
+      "changed_cells": 16,
+      "max_absolute_change": 6.938893903907228e-17,
+      "before_sha256": "8f77326dc37be9d72b3db4210539d517e30f4bf3bc8fc2dc68681510a5b1e320",
+      "after_sha256": "5e85fc586665199a4049764705f8a0aabadd05884413682f7febbc3311f416f4",
+      "changes": [
+        {
+          "row": 120,
+          "column": "rmse",
+          "before": "0.04104230902825881",
+          "after": "0.041042309028258825",
+          "absolute_change": 1.3877787807814457e-17
+        },
+        {
+          "row": 124,
+          "column": "rmse",
+          "before": "0.035546579883733734",
+          "after": "0.03554657988373376",
+          "absolute_change": 2.7755575615628914e-17
+        },
+        {
+          "row": 125,
+          "column": "rmse",
+          "before": "0.030514820187879706",
+          "after": "0.03051482018787971",
+          "absolute_change": 3.469446951953614e-18
+        },
+        {
+          "row": 127,
+          "column": "rmse",
+          "before": "0.04286726741181956",
+          "after": "0.042867267411819565",
+          "absolute_change": 6.938893903907228e-18
+        },
+        {
+          "row": 134,
+          "column": "rmse",
+          "before": "0.02620876161097013",
+          "after": "0.0262087616109702",
+          "absolute_change": 6.938893903907228e-17
+        },
+        {
+          "row": 139,
+          "column": "rmse",
+          "before": "0.03356122948996247",
+          "after": "0.033561229489962506",
+          "absolute_change": 3.469446951953614e-17
+        },
+        {
+          "row": 142,
+          "column": "rmse",
+          "before": "0.03505483963187117",
+          "after": "0.035054839631871164",
+          "absolute_change": 6.938893903907228e-18
+        },
+        {
+          "row": 144,
+          "column": "rmse",
+          "before": "0.030945322608320117",
+          "after": "0.03094532260832012",
+          "absolute_change": 3.469446951953614e-18
+        },
+        {
+          "row": 147,
+          "column": "rmse",
+          "before": "0.04125964427681855",
+          "after": "0.041259644276818566",
+          "absolute_change": 1.3877787807814457e-17
+        },
+        {
+          "row": 150,
+          "column": "rmse",
+          "before": "0.01521420831296027",
+          "after": "0.015214208312960272",
+          "absolute_change": 1.734723475976807e-18
+        },
+        {
+          "row": 157,
+          "column": "rmse",
+          "before": "0.01949982212670212",
+          "after": "0.019499822126702118",
+          "absolute_change": 3.469446951953614e-18
+        },
+        {
+          "row": 158,
+          "column": "rmse",
+          "before": "0.013454846563297193",
+          "after": "0.013454846563297198",
+          "absolute_change": 5.204170427930421e-18
+        },
+        {
+          "row": 161,
+          "column": "rmse",
+          "before": "0.019827077875527073",
+          "after": "0.019827077875527063",
+          "absolute_change": 1.0408340855860843e-17
+        },
+        {
+          "row": 163,
+          "column": "rmse",
+          "before": "0.017691690440558003",
+          "after": "0.017691690440558006",
+          "absolute_change": 3.469446951953614e-18
+        },
+        {
+          "row": 170,
+          "column": "rmse",
+          "before": "0.01894008918410899",
+          "after": "0.018940089184108992",
+          "absolute_change": 3.469446951953614e-18
+        },
+        {
+          "row": 172,
+          "column": "rmse",
+          "before": "0.020864744031201258",
+          "after": "0.02086474403120126",
+          "absolute_change": 3.469446951953614e-18
+        }
+      ]
+    },
+    {
+      "file": "results/recovery_diagnostic.csv",
+      "rows": 150,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "ee70c3906c4ad479d9de99e0808e831cff4c90c4287b50b75f4cb3e9a9d7e590",
+      "after_sha256": "ee70c3906c4ad479d9de99e0808e831cff4c90c4287b50b75f4cb3e9a9d7e590",
+      "changes": []
+    },
+    {
+      "file": "results/turn_loo_fallback_audit.csv",
+      "rows": 9,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "356e9251564045bde71f17ac77339bd30d47d3d4264c22fe51f8c95080ab77af",
+      "after_sha256": "356e9251564045bde71f17ac77339bd30d47d3d4264c22fe51f8c95080ab77af",
+      "changes": []
+    },
+    {
+      "file": "results/variable_horizon_sweep.csv",
+      "rows": 270,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "0d07f75b480ef8c2b6a4483584a453edb3cb0b0cc225cde87f06572abbce03a7",
+      "after_sha256": "0d07f75b480ef8c2b6a4483584a453edb3cb0b0cc225cde87f06572abbce03a7",
+      "changes": []
+    },
+    {
+      "file": "results/variable_horizon_turn_stats.csv",
+      "rows": 1395,
+      "changed_cells": 13,
+      "max_absolute_change": 1.0000680839006293e-15,
+      "before_sha256": "184ee1e5d39bdb74b00510b9149523f1c52120f43baf1c40f2b82f484c457324",
+      "after_sha256": "622d130227e70a873a378472ad1b3829e1d1241c82ec37ea346f393ea5f7e6b2",
+      "changes": [
+        {
+          "row": 183,
+          "column": "credit_bias",
+          "before": "-9.37499999997e-05",
+          "after": "-9.37499999998e-05",
+          "absolute_change": 9.999054535747565e-17
+        },
+        {
+          "row": 186,
+          "column": "credit_bias",
+          "before": "-9.37499999997e-05",
+          "after": "-9.37499999998e-05",
+          "absolute_change": 9.999054535747565e-17
+        },
+        {
+          "row": 228,
+          "column": "credit_bias",
+          "before": "-7.19999999999e-05",
+          "after": "-7.2e-05",
+          "absolute_change": 1.0000409788463172e-16
+        },
+        {
+          "row": 231,
+          "column": "credit_bias",
+          "before": "-7.19999999999e-05",
+          "after": "-7.2e-05",
+          "absolute_change": 1.0000409788463172e-16
+        },
+        {
+          "row": 501,
+          "column": "credit_bias",
+          "before": "0.000514087988137",
+          "after": "0.000514087988136",
+          "absolute_change": 1.0000680839006293e-15
+        },
+        {
+          "row": 575,
+          "column": "credit_bias",
+          "before": "1.08786662745e-16",
+          "after": "4.94391103488e-17",
+          "absolute_change": 5.934755239620001e-17
+        },
+        {
+          "row": 666,
+          "column": "credit_bias",
+          "before": "2.34257647647e-05",
+          "after": "2.34257647648e-05",
+          "absolute_change": 1.000007097528427e-16
+        },
+        {
+          "row": 941,
+          "column": "credit_bias",
+          "before": "-0.000459971586424",
+          "after": "-0.000459971586425",
+          "absolute_change": 1.000013873792005e-15
+        },
+        {
+          "row": 1002,
+          "column": "credit_variance",
+          "before": "0",
+          "after": "1.23259516441e-32",
+          "absolute_change": 1.23259516441e-32
+        },
+        {
+          "row": 1172,
+          "column": "credit_bias",
+          "before": "7.37925198193e-05",
+          "after": "7.3792519819e-05",
+          "absolute_change": 2.999987411267391e-16
+        },
+        {
+          "row": 1292,
+          "column": "credit_bias",
+          "before": "-6.76582373168e-06",
+          "after": "-6.76582373188e-06",
+          "absolute_change": 1.9999972543979089e-16
+        },
+        {
+          "row": 1294,
+          "column": "credit_bias",
+          "before": "0.000601757359675",
+          "after": "0.000601757359674",
+          "absolute_change": 1.0000680839006293e-15
+        },
+        {
+          "row": 1317,
+          "column": "credit_bias",
+          "before": "-0.000162665537327",
+          "after": "-0.000162665537328",
+          "absolute_change": 1.000013873792005e-15
+        }
+      ]
+    },
+    {
+      "file": "results/verl_recovery.csv",
+      "rows": 8,
+      "changed_cells": 0,
+      "max_absolute_change": 0,
+      "before_sha256": "ca685d21b0884c17470852eda4e44b507c26194d7f9dee61b26e1a356c2124f2",
+      "after_sha256": "ca685d21b0884c17470852eda4e44b507c26194d7f9dee61b26e1a356c2124f2",
+      "changes": []
+    }
+  ]
+}

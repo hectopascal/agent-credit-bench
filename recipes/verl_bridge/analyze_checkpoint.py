@@ -13,7 +13,7 @@ Usage:
 
 --last N analyzes only the newest N episodes — the sliding window that
 approximates "the current checkpoint's policy" when one file spans a run.
-N must be a positive integer.
+At least two episodes must remain after windowing.
 """
 
 import argparse
@@ -21,6 +21,7 @@ import csv
 import importlib.util
 import json
 from collections.abc import Mapping
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -115,15 +116,22 @@ def environment_spec(records: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
     params_by_record: list[dict[str, Any]] = []
     fingerprints: list[str] = []
     for index, record in enumerate(records):
-        raw_params = record.get("env_params", {})
-        if raw_params is None:
-            raw_params = {}
+        if "env_params" not in record:
+            raise SystemExit(
+                f"episode {index} is missing env_params; restore its original "
+                "environment configuration before analysis"
+            )
+        raw_params = record["env_params"]
         if not isinstance(raw_params, Mapping):
             raise SystemExit(
                 f"episode {index} has non-object env_params {raw_params!r}"
             )
         params = dict(raw_params)
         try:
+            # Expand defaults so older explicit partial configurations can be
+            # combined with the complete configurations written by the recorder.
+            json.dumps(params, allow_nan=False)
+            params = asdict(make_env(env_name, **params))
             fingerprint = json.dumps(
                 params,
                 allow_nan=False,
@@ -132,9 +140,9 @@ def environment_spec(records: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
             )
         except (TypeError, ValueError) as error:
             raise SystemExit(
-                f"episode {index} has invalid JSON env_params: {error}"
+                f"episode {index} has invalid env_params: {error}"
             ) from error
-        params_by_record.append(params)
+        params_by_record.append(json.loads(fingerprint))
         fingerprints.append(fingerprint)
 
     env_params = params_by_record[0]
@@ -161,11 +169,22 @@ def main() -> None:
     if not records:
         raise SystemExit("no episodes found")
     env_name, env_params = environment_spec(records)
+    if len(records) < 2:
+        parser.error(
+            "analysis requires at least two episodes for group-relative estimators; "
+            "supply more episodes and use --last >= 2 when selecting a window"
+        )
     mdp = make_env(env_name, **env_params)
 
+    validated = []
+    for index, record in enumerate(records):
+        try:
+            validated.append(trajectory_from_record(record, mdp=mdp))
+        except (ValueError, TypeError, OverflowError) as error:
+            parser.error(f"episode {index}: {error}")
+    trajectories = tuple(validated)
     turns = [turn for record in records for turn in record["turns"]]
     parsed_rate = sum(turn["parsed"] for turn in turns) / len(turns)
-    trajectories = tuple(trajectory_from_record(record) for record in records)
     mean_return = sum(t.total_return for t in trajectories) / len(trajectories)
     print(
         f"{len(trajectories)} episodes, {len(turns)} turns, "

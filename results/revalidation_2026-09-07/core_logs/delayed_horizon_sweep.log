@@ -1,0 +1,14 @@
+
+Fontconfig error: No writable cache directories
+	/opt/homebrew/var/cache/fontconfig
+	/Users/yan/.cache/fontconfig
+	/Users/yan/.fontconfig
+2026-09-07 00:42:07.732 system_profiler[5522:15326322] XType: Using static font registry.
+Matplotlib is building the font cache; this may take a moment.
+horizon=2: done
+horizon=4: done
+horizon=8: done
+horizon=16: done
+horizon=32: done
+wrote results/delayed_horizon_sweep.csv
+wrote results/delayed_leakage.png

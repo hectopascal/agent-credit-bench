@@ -1,5 +1,12 @@
 # Re-validation report
 
+The latest [correctness fixes and complete rerun](correctness_revalidation_2026-09-07.md)
+is dated 2026-09-07. All seven newly named issues are fixed, and all seven
+experiment entry points reproduce the current qualified findings. Across eight
+CSVs, six are identical and two differ only at floating-point rounding scale.
+The historical 2026-08-30 record below is retained to explain the earlier claim
+corrections; the newer report contains current test counts and provenance.
+
 Audit date: 2026-08-30.
 
 This report records what was rerun, which claims changed, and what the
