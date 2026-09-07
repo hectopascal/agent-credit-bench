@@ -29,9 +29,11 @@ import random
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
 
+from agent_credit_bench._numerics import finite_float
 from agent_credit_bench._validation import (
     validate_positive_integer,
     validated_transitions,
@@ -135,39 +137,42 @@ def minimum_episode_return(mdp: FiniteHorizonMDP) -> float:
     any legal completion, including in environments with negative rewards.
     Zero-probability edges are excluded; early termination ends accumulation.
     """
-    return min(
-        _minimum_action_returns(
-            mdp, 0, mdp.initial_state, worst_outcome=True
-        ).values()
-    )
+    values = _minimum_action_returns(mdp, 0, mdp.initial_state, worst_outcome=True)
+    return finite_float(min(values.values()))
 
 
 def _minimum_action_returns(
     mdp: FiniteHorizonMDP, timestep: int, state: State, *, worst_outcome: bool
-) -> dict[Action, float]:
+) -> dict[Action, Fraction]:
     validate_positive_integer(mdp.horizon, "mdp.horizon")
     if not 0 <= timestep < mdp.horizon:
         raise ValueError("timestep must be within the environment horizon")
-    future_values: dict[State, float] = {}
+    future_values: dict[State, Fraction] = {}
     for at in range(mdp.horizon - 1, timestep - 1, -1):
         state_values = {}
         for at_state in ([state] if at == timestep else mdp.states_at(at)):
             action_values = {}
             for action in mdp.actions(at, at_state):
                 outcomes = []
+                probability_sum = Fraction(0)
                 for transition in validated_transitions(
                     mdp.transitions(at, at_state, action), at, at_state, action
                 ):
                     if transition.probability == 0.0:
                         continue
                     terminal = transition.terminated or at + 1 == mdp.horizon
-                    future = 0.0 if terminal else future_values[transition.next_state]
-                    value = transition.reward + future
+                    future = (
+                        Fraction(0)
+                        if terminal else future_values[transition.next_state]
+                    )
+                    probability = Fraction(transition.probability)
+                    probability_sum += probability
+                    value = Fraction(transition.reward) + future
                     outcomes.append(
-                        value if worst_outcome else transition.probability * value
+                        value if worst_outcome else probability * value
                     )
                 action_values[action] = (
-                    min(outcomes) if worst_outcome else math.fsum(outcomes)
+                    min(outcomes) if worst_outcome else sum(outcomes) / probability_sum
                 )
             if not action_values:
                 raise ValueError(f"no legal actions at (t={at}, state={at_state!r})")

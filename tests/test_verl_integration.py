@@ -152,9 +152,7 @@ def test_verl_gae_perfect_critic_lambda_zero_distractor_credit_is_constant() -> 
     trajectories = sample_trajectories(mdp, policy, 64, 0)
     context = EstimatorContext(mdp=mdp, policy=policy, trajectories=trajectories)
     credits = VerlGAE(lam=0.0).estimate(context)
-    distractor_credits = [
-        row[t] for row in credits for t in range(1, len(row) - 1)
-    ]
+    distractor_credits = [row[t] for row in credits for t in range(1, len(row) - 1)]
     first = distractor_credits[0]
     assert all(c == pytest.approx(first, abs=1e-9) for c in distractor_credits)
     assert first != pytest.approx(0.0, abs=1e-12), "whitening shifts the zeros"
@@ -223,3 +221,56 @@ def test_run_benchmark_accepts_verl_estimator() -> None:
     )
     assert result.mean_gradient_cosine > 0.99
     assert all(m.gradient_cosine > 0.9 for m in result.seed_metrics)
+
+
+@pytest.mark.parametrize("observation_length", [2, 3, 8])
+def test_bridge_observation_budget_preserves_recursive_penalty(observation_length):
+    import torch
+    from verl.trainer.ppo import core_algos
+
+    recipe_dir = Path(__file__).resolve().parent.parent / "recipes" / "verl_bridge"
+    sys.path.insert(0, str(recipe_dir))
+    try:
+        module = importlib.import_module("bridge_agent_loop")
+    finally:
+        sys.path.remove(str(recipe_dir))
+    loop = object.__new__(module.CreditBenchBridgeLoop)
+    loop.response_length = 3
+    loop.turn_separator = []
+
+    async def template(messages, **kwargs):
+        return (
+            [201] * observation_length if kwargs.get("remove_system_prompt") else [101]
+        )
+
+    async def generate(**kwargs):
+        return SimpleNamespace(token_ids=[1])
+
+    loop.apply_chat_template = template
+    loop.server_manager = SimpleNamespace(generate=generate)
+    loop.tokenizer = SimpleNamespace(decode=lambda *args, **kwargs: "CONTINUE")
+    output = asyncio.run(
+        loop.run(
+            {},
+            extra_info={
+                "env": "variable_horizon",
+                "env_params": {"stop_rewards": [-1.0, -1.0], "continue_reward": 0.0},
+            },
+        )
+    )
+    assert output.response_ids == [1]
+    assert output.response_mask == [1]
+    assert output.reward_score == -1.0
+    # Match real worker reward placement. Equal penalized and completed rows
+    # must both have return -1 on their generated token under recursion.
+    rewards = torch.tensor([[-1.0, 0.0], [-1.0, 0.0]], dtype=torch.float64)
+    masks = torch.tensor([[1.0, 0.0], [1.0, 0.0]], dtype=torch.float64)
+    for _, returns in [
+        core_algos.compute_gae_advantage_return(
+            rewards, torch.zeros_like(rewards), masks, 1.0, 1.0
+        ),
+        core_algos.compute_reinforce_plus_plus_outcome_advantage(
+            rewards, masks, config=SimpleNamespace(gamma=1.0)
+        ),
+    ]:
+        assert returns[:, 0].tolist() == [-1.0, -1.0]

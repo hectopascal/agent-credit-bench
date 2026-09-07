@@ -1,0 +1,9 @@
+environment,recover_success_probability,batch_size,seed,num_recovered,framework,framework_version,estimator,mean_credit_bad,mean_credit_recover,both_positive_fraction_on_recovered
+recovery,1.0,2000,0,498,agent-credit-bench,source-tree,oracle_advantage,-0.25,0.5,0.0
+recovery,1.0,2000,0,498,verl,0.9.0,verl_grpo,0.5864404512240075,0.5864404512240075,1.0
+recovery,1.0,2000,0,498,verl,0.9.0,verl_rloo,0.2561280640320147,0.2561280640320147,1.0
+recovery,1.0,2000,0,498,verl,0.9.0,verl_gae_exact_lam1,0.558660959238466,1.1035635798826369,1.0
+recovery,1.0,2000,0,498,verl,0.9.0,verl_gae_exact_lam0,-0.694606249835999,1.4229813382864591,0.0
+recovery,1.0,2000,0,498,trl,1.12.0,trl_grpo,0.5863074980501309,0.5863074980501309,1.0
+recovery,1.0,2000,0,498,trl,1.12.0,trl_dr_grpo,0.25600000000000017,0.25600000000000017,1.0
+recovery,1.0,2000,0,498,trl,1.12.0,trl_rloo,0.2561280640320147,0.2561280640320147,1.0

@@ -125,6 +125,8 @@ def run_benchmark(
         raise ValueError("seeds must contain at least one seed")
     for seed in seed_values:
         validate_integer(seed, "each seed")
+    if len(set(seed_values)) != len(seed_values):
+        raise ValueError("seeds must be unique for independent batches")
 
     values = solve_exact_values(mdp, policy)
     g_star = exact_policy_gradient(mdp, policy, values)

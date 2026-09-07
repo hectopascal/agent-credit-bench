@@ -1,0 +1,10 @@
+wrote /tmp/acb-fixes-results/turn_loo_fallback_audit.csv
+batch= 2 turn_loo_legacy_zero_fallback   cos=0.974320 relative_error=0.225378
+batch= 2 batch_centered_broadcast        cos=0.999862 relative_error=0.020461
+batch= 2 turn_loo                        cos=0.999876 relative_error=0.019731
+batch= 4 turn_loo_legacy_zero_fallback   cos=0.988629 relative_error=0.151427
+batch= 4 batch_centered_broadcast        cos=0.999887 relative_error=0.015074
+batch= 4 turn_loo                        cos=0.999947 relative_error=0.010308
+batch= 8 turn_loo_legacy_zero_fallback   cos=0.995717 relative_error=0.092861
+batch= 8 batch_centered_broadcast        cos=0.999975 relative_error=0.008341
+batch= 8 turn_loo                        cos=0.999966 relative_error=0.009006

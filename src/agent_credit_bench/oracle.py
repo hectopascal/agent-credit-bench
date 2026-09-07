@@ -1,5 +1,6 @@
-import math
+from fractions import Fraction
 
+from agent_credit_bench._numerics import finite_float
 from agent_credit_bench._validation import (
     validate_positive_integer,
     validated_policy_probabilities,
@@ -34,43 +35,42 @@ def solve_exact_values(mdp: FiniteHorizonMDP, policy: Policy) -> ExactValues:
     advantages[(t, s, a)] for every state in mdp.states_at(t) and every
     available action.
 
-    Advantages are centered using Q differences around a reference value to
-    preserve small action gaps under large common reward offsets. Consequently
-    A can differ from subtracting the separately rounded output floats Q and V.
+    Bellman recursion uses exact rational arithmetic on the validated binary
+    float inputs. Public V, Q and A are rounded separately to finite floats;
+    an unrepresentable result raises ValueError. Keeping internal residuals
+    prevents cancelling dense rewards from erasing a small action advantage.
     """
     validate_positive_integer(mdp.horizon, "mdp.horizon")
-    V = {}  # state
-    Q = {}  # action
-    A = {}  # advantage
+    V = {}
+    Q = {}
+    A = {}
     for t in range(mdp.horizon - 1, -1, -1):
         for s in mdp.states_at(t):
             actions = mdp.actions(t, s)
             probs = validated_policy_probabilities(policy, t, s, actions)
+            weights = {a: Fraction(p) for a, p in probs.items()}
+            weight_sum = sum(weights.values())
             for a in actions:
-                contributions = []
                 transitions = validated_transitions(mdp.transitions(t, s, a), t, s, a)
+                total = Fraction(0)
+                probability_sum = Fraction(0)
                 for transition in transitions:
-                    if transition.probability == 0.0:
-                        continue  # an impossible next state need not be enumerated
+                    probability = Fraction(transition.probability)
+                    if not probability:
+                        continue
                     future = (
-                        0.0
+                        Fraction(0)
                         if transition.terminated or t + 1 == mdp.horizon
                         else V[t + 1, transition.next_state]
                     )
-                    contributions.append(
-                        transition.probability * (transition.reward + future)
-                    )
-                Q[(t, s, a)] = math.fsum(contributions)
-
-            # Compute V directly: reconstructing it from a distant off-policy
-            # reference can erase the entire on-policy return.
-            V[(t, s)] = math.fsum(probs[a] * Q[(t, s, a)] for a in actions)
-            reference = min(
-                (Q[(t, s, a)] for a in actions if probs[a] > 0.0),
-                key=lambda q: (abs(q - V[(t, s)]), q),
-            )
-            differences = {a: Q[(t, s, a)] - reference for a in actions}
-            mean_difference = math.fsum(probs[a] * differences[a] for a in actions)
+                    total += probability * (Fraction(transition.reward) + future)
+                    probability_sum += probability
+                Q[t, s, a] = total / probability_sum
+            V[t, s] = sum(weights[a] * Q[t, s, a] for a in actions) / weight_sum
             for a in actions:
-                A[(t, s, a)] = differences[a] - mean_difference
-    return ExactValues(state_values=V, action_values=Q, advantages=A)
+                A[t, s, a] = Q[t, s, a] - V[t, s]
+    return ExactValues(
+        state_values={k: finite_float(v) for k, v in V.items()},
+        action_values={k: finite_float(v) for k, v in Q.items()},
+        advantages={k: finite_float(v) for k, v in A.items()},
+    )

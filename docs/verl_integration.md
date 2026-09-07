@@ -108,11 +108,19 @@ the epsilon delta). The suite pins this difference; downstream training
 impact is not tested here.
 
 **5. GAE and REINFORCE++ whiten advantages across the batch** before
-returning them. On delayed-effect distractor turns whose TD errors are
-exactly zero, whitening leaves one shared nonzero constant — a pure
-credit-*value* shift that the gradient-validity metrics correctly ignore and
-the identification metrics correctly flag (see the two-families discussion
-in the README).
+returning them. With an exact critic and GAE lambda 0, delayed-effect
+intermediate turns have zero one-step TD residuals, so whitening maps them
+to a shared constant. At positive lambda, later TD residuals propagate
+backward; zero immediate TD error does not imply zero multistep advantage.
+A fixed action-independent baseline preserves the expected policy gradient,
+but can change finite-batch gradients and their variance. Batch whitening also
+introduces data-dependent centering and scaling. Centered RMSE removes group
+shifts; gradient-validity metrics measure their finite-sample consequences.
+
+Likewise, reducing GAE lambda below 1 does not guarantee negative BAD credit
+on a selected successful recovery. Before whitening, that credit is
+`-0.25 + 0.5 * lambda` in the default recovery environment. The sign separation
+shown in the table is the lambda-0 endpoint, with the stated batch and critic.
 
 ## What this does and does not capture
 

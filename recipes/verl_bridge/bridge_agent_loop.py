@@ -116,7 +116,11 @@ class CreditBenchBridgeLoop(AgentLoopBase):
 
         self._log_episode(session, env_name, truncated)
 
-        response_ids = prompt_ids[prompt_length:]
+        response_ids = prompt_ids[prompt_length:][: self.response_length]
+        response_mask = response_mask[: self.response_length]
+        while response_mask and response_mask[-1] == 0:
+            response_mask.pop()
+            response_ids.pop()
         return AgentLoopOutput(
             prompt_ids=prompt_ids[:prompt_length],
             response_ids=response_ids[: self.response_length],

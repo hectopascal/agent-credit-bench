@@ -1,0 +1,365 @@
+[
+  {
+    "file": "cross_framework_recovery.csv",
+    "rows": 13,
+    "byte_identical": true,
+    "new_columns": [],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  },
+  {
+    "file": "delayed_horizon_sweep.csv",
+    "rows": 250,
+    "byte_identical": true,
+    "new_columns": [],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  },
+  {
+    "file": "monte_carlo_convergence.csv",
+    "rows": 180,
+    "byte_identical": true,
+    "new_columns": [],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  },
+  {
+    "file": "recovery_diagnostic.csv",
+    "rows": 150,
+    "byte_identical": false,
+    "new_columns": [
+      "num_all_bad",
+      "num_all_good"
+    ],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  },
+  {
+    "file": "turn_loo_fallback_audit.csv",
+    "rows": 9,
+    "byte_identical": true,
+    "new_columns": [],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  },
+  {
+    "file": "variable_horizon_sweep.csv",
+    "rows": 270,
+    "byte_identical": false,
+    "new_columns": [],
+    "changed_cells": 32,
+    "field_counts": {
+      "spearman_mean": 31,
+      "relative_mean_gradient_error": 1
+    },
+    "max_absolute_difference": 0.0018504802880000004,
+    "changes": [
+      {
+        "row": 123,
+        "field": "spearman_mean",
+        "before": "0.454022064449",
+        "after": "0.453890894293",
+        "absolute_difference": 0.00013117015600000448
+      },
+      {
+        "row": 126,
+        "field": "spearman_mean",
+        "before": "0.495793310741",
+        "after": "0.495318243646",
+        "absolute_difference": 0.00047506709500000355
+      },
+      {
+        "row": 129,
+        "field": "spearman_mean",
+        "before": "0.66752537632",
+        "after": "0.66751014956",
+        "absolute_difference": 1.5226759999986683e-05
+      },
+      {
+        "row": 138,
+        "field": "spearman_mean",
+        "before": "0.468995602663",
+        "after": "0.469091251108",
+        "absolute_difference": 9.564844499998504e-05
+      },
+      {
+        "row": 141,
+        "field": "spearman_mean",
+        "before": "0.589271920352",
+        "after": "0.589534243504",
+        "absolute_difference": 0.0002623231519999214
+      },
+      {
+        "row": 144,
+        "field": "spearman_mean",
+        "before": "0.698392206018",
+        "after": "0.698508811319",
+        "absolute_difference": 0.00011660530099999455
+      },
+      {
+        "row": 147,
+        "field": "spearman_mean",
+        "before": "0.794838214352",
+        "after": "0.79481158073",
+        "absolute_difference": 2.6633621999949675e-05
+      },
+      {
+        "row": 153,
+        "field": "spearman_mean",
+        "before": "0.454091350775",
+        "after": "0.454171456087",
+        "absolute_difference": 8.010531199997839e-05
+      },
+      {
+        "row": 156,
+        "field": "spearman_mean",
+        "before": "0.602133599968",
+        "after": "0.602442726305",
+        "absolute_difference": 0.0003091263369999764
+      },
+      {
+        "row": 159,
+        "field": "spearman_mean",
+        "before": "0.724973797656",
+        "after": "0.724946316855",
+        "absolute_difference": 2.748080100001271e-05
+      },
+      {
+        "row": 162,
+        "field": "spearman_mean",
+        "before": "0.817601141568",
+        "after": "0.817601276617",
+        "absolute_difference": 1.3504899998295627e-07
+      },
+      {
+        "row": 165,
+        "field": "spearman_mean",
+        "before": "0.920874523942",
+        "after": "0.920879538369",
+        "absolute_difference": 5.014427000071819e-06
+      },
+      {
+        "row": 171,
+        "field": "spearman_mean",
+        "before": "0.617306060854",
+        "after": "0.617171097765",
+        "absolute_difference": 0.000134963088999962
+      },
+      {
+        "row": 180,
+        "field": "spearman_mean",
+        "before": "0.932242517106",
+        "after": "0.932242514416",
+        "absolute_difference": 2.690000000526993e-09
+      },
+      {
+        "row": 213,
+        "field": "spearman_mean",
+        "before": "0.39074041087",
+        "after": "0.388889930582",
+        "absolute_difference": 0.0018504802880000004
+      },
+      {
+        "row": 216,
+        "field": "spearman_mean",
+        "before": "0.53874679816",
+        "after": "0.538090559639",
+        "absolute_difference": 0.0006562385210000521
+      },
+      {
+        "row": 219,
+        "field": "spearman_mean",
+        "before": "0.673339436082",
+        "after": "0.673635966588",
+        "absolute_difference": 0.0002965305059999812
+      },
+      {
+        "row": 228,
+        "field": "spearman_mean",
+        "before": "0.440916969852",
+        "after": "0.440253444328",
+        "absolute_difference": 0.0006635255240000082
+      },
+      {
+        "row": 231,
+        "field": "spearman_mean",
+        "before": "0.590333680191",
+        "after": "0.59029739397",
+        "absolute_difference": 3.628622099993706e-05
+      },
+      {
+        "row": 234,
+        "field": "spearman_mean",
+        "before": "0.692872662705",
+        "after": "0.693005795026",
+        "absolute_difference": 0.00013313232099998462
+      },
+      {
+        "row": 237,
+        "field": "spearman_mean",
+        "before": "0.776713785448",
+        "after": "0.776642596627",
+        "absolute_difference": 7.118882099999002e-05
+      },
+      {
+        "row": 243,
+        "field": "spearman_mean",
+        "before": "0.434042895987",
+        "after": "0.434006894545",
+        "absolute_difference": 3.6001441999999884e-05
+      },
+      {
+        "row": 246,
+        "field": "spearman_mean",
+        "before": "0.604986583681",
+        "after": "0.605053764145",
+        "absolute_difference": 6.71804640000051e-05
+      },
+      {
+        "row": 249,
+        "field": "spearman_mean",
+        "before": "0.723572634541",
+        "after": "0.723529748862",
+        "absolute_difference": 4.2885678999904364e-05
+      },
+      {
+        "row": 252,
+        "field": "spearman_mean",
+        "before": "0.806466647376",
+        "after": "0.806468193207",
+        "absolute_difference": 1.5458309999827335e-06
+      },
+      {
+        "row": 255,
+        "field": "spearman_mean",
+        "before": "0.915782843805",
+        "after": "0.9157871561",
+        "absolute_difference": 4.31229500008623e-06
+      },
+      {
+        "row": 258,
+        "field": "spearman_mean",
+        "before": "0.428568695109",
+        "after": "0.428558122674",
+        "absolute_difference": 1.0572434999966962e-05
+      },
+      {
+        "row": 261,
+        "field": "spearman_mean",
+        "before": "0.605098304828",
+        "after": "0.605102919033",
+        "absolute_difference": 4.614204999975335e-06
+      },
+      {
+        "row": 264,
+        "field": "spearman_mean",
+        "before": "0.734456727488",
+        "after": "0.734458698838",
+        "absolute_difference": 1.971350000018468e-06
+      },
+      {
+        "row": 265,
+        "field": "relative_mean_gradient_error",
+        "before": "0.00155626757583",
+        "after": "0.00155626757584",
+        "absolute_difference": 1.0000030317702802e-14
+      },
+      {
+        "row": 267,
+        "field": "spearman_mean",
+        "before": "0.81643137324",
+        "after": "0.816434188653",
+        "absolute_difference": 2.815412999956912e-06
+      },
+      {
+        "row": 270,
+        "field": "spearman_mean",
+        "before": "0.926283774116",
+        "after": "0.926278279449",
+        "absolute_difference": 5.494667000061071e-06
+      }
+    ]
+  },
+  {
+    "file": "variable_horizon_turn_stats.csv",
+    "rows": 1395,
+    "byte_identical": false,
+    "new_columns": [],
+    "changed_cells": 7,
+    "field_counts": {
+      "credit_bias": 7
+    },
+    "max_absolute_difference": 1.000007097528427e-16,
+    "changes": [
+      {
+        "row": 184,
+        "field": "credit_bias",
+        "before": "-9.37499999998e-05",
+        "after": "-9.37499999997e-05",
+        "absolute_difference": 9.999054535747565e-17
+      },
+      {
+        "row": 187,
+        "field": "credit_bias",
+        "before": "-9.37499999998e-05",
+        "after": "-9.37499999997e-05",
+        "absolute_difference": 9.999054535747565e-17
+      },
+      {
+        "row": 576,
+        "field": "credit_bias",
+        "before": "4.94391103488e-17",
+        "after": "2.35501853708e-18",
+        "absolute_difference": 4.7084091811719996e-17
+      },
+      {
+        "row": 667,
+        "field": "credit_bias",
+        "before": "2.34257647648e-05",
+        "after": "2.34257647647e-05",
+        "absolute_difference": 1.000007097528427e-16
+      },
+      {
+        "row": 1173,
+        "field": "credit_bias",
+        "before": "7.3792519819e-05",
+        "after": "7.37925198191e-05",
+        "absolute_difference": 9.999054535747565e-17
+      },
+      {
+        "row": 1293,
+        "field": "credit_bias",
+        "before": "-6.76582373188e-06",
+        "after": "-6.76582373185e-06",
+        "absolute_difference": 2.9999365892905555e-17
+      },
+      {
+        "row": 1345,
+        "field": "credit_bias",
+        "before": "-6.41953563869e-18",
+        "after": "6.9901610288e-18",
+        "absolute_difference": 1.340969666749e-17
+      }
+    ]
+  },
+  {
+    "file": "verl_recovery.csv",
+    "rows": 8,
+    "byte_identical": true,
+    "new_columns": [],
+    "changed_cells": 0,
+    "field_counts": {},
+    "max_absolute_difference": 0,
+    "changes": []
+  }
+]

@@ -15,9 +15,12 @@ supplies estimator_seed (as run_benchmark does), it is combined with the
 constructor seed to resample continuations reproducibly for each batch.
 """
 
+import math
 import random
 from dataclasses import dataclass
+from fractions import Fraction
 
+from agent_credit_bench._numerics import finite_float
 from agent_credit_bench._validation import (
     validate_integer,
     validate_positive_integer,
@@ -42,7 +45,7 @@ def _rollout(
     first_action: Action = _SAMPLE_ACTION,
 ) -> float:
     """Return of one continuation from (t, s), optionally forcing the first action."""
-    total = 0.0
+    rewards = []
     state = start_state
     action = first_action
     for t in range(start_timestep, mdp.horizon):
@@ -56,12 +59,12 @@ def _rollout(
         transition = rng.choices(
             transitions, weights=[tr.probability for tr in transitions]
         )[0]
-        total += transition.reward
+        rewards.append(transition.reward)
         if transition.terminated:
             break
         state = transition.next_state
         action = _SAMPLE_ACTION
-    return total
+    return math.fsum(rewards)
 
 
 @dataclass(frozen=True)
@@ -82,31 +85,33 @@ class MonteCarloAdvantage:
             self.seed if context.estimator_seed is None else
             f"agent-credit-bench:mc:v1:{self.seed}:{context.estimator_seed}"
         )
-        q_cache: dict[tuple[int, State, Action], float] = {}
-        v_cache: dict[tuple[int, State], float] = {}
+        q_cache: dict[tuple[int, State, Action], Fraction] = {}
+        v_cache: dict[tuple[int, State], Fraction] = {}
 
-        def q_value(t: int, s: State, a: Action) -> float:
+        def q_value(t: int, s: State, a: Action) -> Fraction:
             key = (t, s, a)
             if key not in q_cache:
                 q_cache[key] = sum(
-                    _rollout(mdp, policy, rng, t, s, a)
+                    Fraction(_rollout(mdp, policy, rng, t, s, a))
                     for _ in range(self.num_rollouts)
                 ) / self.num_rollouts
             return q_cache[key]
 
-        def v_value(t: int, s: State) -> float:
+        def v_value(t: int, s: State) -> Fraction:
             key = (t, s)
             if key not in v_cache:
                 v_cache[key] = sum(
-                    _rollout(mdp, policy, rng, t, s)
+                    Fraction(_rollout(mdp, policy, rng, t, s))
                     for _ in range(self.num_rollouts)
                 ) / self.num_rollouts
             return v_cache[key]
 
         return tuple(
             tuple(
-                q_value(step.timestep, step.state, step.action)
-                - v_value(step.timestep, step.state)
+                finite_float(
+                    q_value(step.timestep, step.state, step.action)
+                    - v_value(step.timestep, step.state)
+                )
                 for step in trajectory.steps
             )
             for trajectory in context.trajectories

@@ -7,12 +7,13 @@ transition sampling, parse-failure handling) all lives in
 verifiers' rollout loop, so the projection caveat from
 ``recipes/verl_bridge/README.md`` carries over unchanged.
 
-Per rollout: ``setup_state`` opens a BridgeSession, ``env_response`` feeds
-each assistant reply through ``session.act`` and returns the next observation
-as the user message; when the episode ends it sets ``final_env_response``
+Per rollout: ``setup_state`` opens a BridgeSession, ``add_trajectory_step``
+applies each complete assistant reply before stop checks, and ``env_response``
+returns the next observation. When the episode ends it sets ``final_env_response``
 (verifiers' env-side termination idiom) and appends the finished episode to
 the JSONL log that ``recipes/verl_bridge/analyze_checkpoint.py`` consumes.
-The rubric reward is the episode's total return.
+The rubric reward is the complete return, or the minimum supported complete
+return for an unfinished episode. Token-truncated replies are not executed.
 
 Usage (also the Environments-Hub ``load_environment`` convention)::
 
@@ -37,6 +38,7 @@ from agent_credit_bench.integrations.bridge import (
     ParseFailurePolicy,
     episode_record,
     make_env,
+    minimum_episode_return,
     render_state,
     render_system_prompt,
 )
@@ -68,8 +70,9 @@ def _last_assistant_text(messages: list[Any]) -> str:
 
 
 def episode_return(state: dict[str, Any]) -> float:
-    """Rubric reward: the episode's total return (partial if truncated)."""
-    return float(state["credit_bench_session"].total_return)
+    """Complete return, or a conservative penalty for an incomplete episode."""
+    session = state["credit_bench_session"]
+    return session.total_return if session.done else minimum_episode_return(session.mdp)
 
 
 class CreditBenchEnv(vf.MultiTurnEnv):
@@ -102,11 +105,15 @@ class CreditBenchEnv(vf.MultiTurnEnv):
             parse_failure_policy=self.parse_failure_policy,
         )
 
-    async def env_response(
-        self, messages: list[dict[str, Any]], state: dict[str, Any], **kwargs: Any
-    ) -> list[dict[str, Any]]:
+    async def add_trajectory_step(self, state: dict[str, Any], trajectory_step) -> None:
+        # This hook runs before verifiers checks turn/token caps. Applying the
+        # response in env_response would omit a valid final action at the cap.
+        await super().add_trajectory_step(state, trajectory_step)
+        if trajectory_step.get("is_truncated", False):
+            state["credit_bench_truncated"] = True
+            return
         session = state["credit_bench_session"]
-        session.act(_last_assistant_text(messages))
+        session.act(_last_assistant_text(trajectory_step["completion"]))
         if session.done:
             self._log_episode(session)
             closing = [
@@ -115,8 +122,15 @@ class CreditBenchEnv(vf.MultiTurnEnv):
                 )
             ]
             state["final_env_response"] = closing
-            return closing
-        return [vf.UserMessage(content=session.observe())]
+
+    @vf.stop
+    async def has_truncated_reply(self, state: dict[str, Any]) -> bool:
+        return state.get("credit_bench_truncated", False)
+
+    async def env_response(
+        self, messages: list[dict[str, Any]], state: dict[str, Any], **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        return [vf.UserMessage(content=state["credit_bench_session"].observe())]
 
     def _log_episode(self, session: BridgeSession) -> None:
         if self.episodes_path is None:

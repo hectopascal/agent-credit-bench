@@ -21,6 +21,7 @@ integrations to score actual framework implementations.
 import statistics
 from dataclasses import dataclass
 
+from agent_credit_bench._numerics import centered_values
 from agent_credit_bench.estimators.base import EstimatorContext
 
 
@@ -33,9 +34,9 @@ class GRPOStyleNormalized:
         self, context: EstimatorContext
     ) -> tuple[tuple[float, ...], ...]:
         returns = [t.total_return for t in context.trajectories]
-        mean = statistics.fmean(returns)
+        centered = centered_values(returns)
         std = statistics.pstdev(returns)
         return tuple(
-            tuple((ret - mean) / (std + self.epsilon) for _ in trajectory.steps)
-            for ret, trajectory in zip(returns, context.trajectories, strict=True)
+            tuple(ret / (std + self.epsilon) for _ in trajectory.steps)
+            for ret, trajectory in zip(centered, context.trajectories, strict=True)
         )

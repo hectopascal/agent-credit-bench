@@ -1,0 +1,20 @@
+{
+  "base_commit": "982bd15646b81315b066453ecd38e817e9e4258c",
+  "distinct_tests_passed": 291,
+  "new_regressions": 28,
+  "core_tests_covered": 245,
+  "verifiers_tests_passed": 12,
+  "verl_trl_tests_passed": 25,
+  "openrlhf_tests_passed": 9,
+  "python312_full_suite": {
+    "passed": 256,
+    "skipped": 35
+  },
+  "default_experiment_entry_points": 7,
+  "default_csv_rows": 2275,
+  "byte_identical_csvs": 5,
+  "all_normalized_gradient_mse_values_unchanged": true,
+  "ruff": "passed",
+  "build_and_isolated_wheel_smoke": "passed",
+  "gpu_training": "not run"
+}

@@ -164,7 +164,10 @@ rewards, early termination, and the worst positive-probability stochastic
 outcome. It prevents a zero truncation reward from beating valid negative-return
 episodes. `credit_bench_truncated` records the event, and discarded tokens never
 execute an action. This is an explicit failure penalty, not a completed episode
-return. Increase `response_length` if it occurs frequently.
+return. Trailing observation tokens are removed from returned responses so
+verl places the penalty on a generated token; GAE and REINFORCE++ therefore
+retain it through their masked recursion. Increase `response_length` if it
+occurs frequently.
 
 Episode totals use `math.fsum`. Analysis also accepts legacy left-to-right sums
 and differences within two ulps of the stable sum for cross-version log

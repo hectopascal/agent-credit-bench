@@ -62,6 +62,9 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        import matplotlib
+
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
         raise SystemExit(
@@ -121,6 +124,8 @@ def main() -> None:
                         env.recover_success_probability
                     ),
                     "num_recovered": len(recovered),
+                    "num_all_good": len(all_good),
+                    "num_all_bad": len(all_bad),
                     "mean_credit_bad_on_recovered": fmean(bad_recovered),
                     "mean_credit_recover_on_recovered": fmean(recover),
                     "both_positive_fraction_on_recovered": fmean(
@@ -128,7 +133,9 @@ def main() -> None:
                         for b, r in zip(bad_recovered, recover, strict=True)
                     ),
                     "mean_credit_all_bad": fmean(credits[i][0] for i in all_bad),
-                    "mean_credit_all_good": fmean(credits[i][0] for i in all_good),
+                    "mean_credit_all_good": (
+                        fmean(credits[i][0] for i in all_good) if all_good else None
+                    ),
                     "batch_gradient_cosine": cosine_similarity(batch_g, g_star),
                     "batch_gradient_relative_error": norm(difference) / g_star_norm,
                 }

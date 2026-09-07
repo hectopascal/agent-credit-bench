@@ -12,6 +12,7 @@ a caller bug — group-relative credit is meaningless without a group.
 
 from dataclasses import dataclass
 
+from agent_credit_bench._numerics import centered_values
 from agent_credit_bench.estimators.base import EstimatorContext
 
 
@@ -28,10 +29,10 @@ class BatchCenteredBroadcast:
                 "BatchCenteredBroadcast needs at least two trajectories "
                 "for leave-one-out centering"
             )
-        total = sum(returns)
+        centered = centered_values(returns)
         count = len(returns)
         credits = []
-        for trajectory, ret in zip(context.trajectories, returns, strict=True):
-            baseline = (total - ret) / (count - 1)
-            credits.append(tuple(ret - baseline for _ in trajectory.steps))
+        for trajectory, value in zip(context.trajectories, centered, strict=True):
+            credit = value * (count / (count - 1))
+            credits.append(tuple(credit for _ in trajectory.steps))
         return tuple(credits)

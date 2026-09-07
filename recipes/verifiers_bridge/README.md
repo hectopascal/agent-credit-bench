@@ -13,11 +13,15 @@ history-conditioned LLM policy.
 
 - `credit_bench_env.py` — `CreditBenchEnv(vf.MultiTurnEnv)` plus the
   Environments-Hub `load_environment(**kwargs)` entry point. Each rollout
-  opens a `BridgeSession`; `env_response` feeds the assistant's reply
-  through `session.act` and returns the next observation; episode end uses
+  opens a `BridgeSession`; `add_trajectory_step` feeds the assistant's reply
+  through `session.act`; `env_response` returns the next observation. Episode end uses
   verifiers' `final_env_response` idiom and appends the finished episode to
   a JSONL log (`episodes_path` argument or `CREDIT_BENCH_EPISODES_PATH`
-  env var). The rubric reward is the episode's total return.
+  env var). Complete replies are applied in `add_trajectory_step` before
+  verifiers checks turn/token caps. The rubric returns the complete episode
+  return, or the lowest supported complete return for an unfinished episode.
+  Token-truncated replies are not executed, and incomplete episodes are not
+  written to the complete-episode log.
 
 All environment mechanics (rendering, parsing, parse-failure handling,
 transition sampling) live in the installed package at

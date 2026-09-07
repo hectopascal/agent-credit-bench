@@ -263,6 +263,13 @@ whole-trajectory baseline.*
 *The gradient-error frontier shows where TurnLOO or trajectory centering has
 lower normalized finite-batch gradient MSE.*
 
+These are empirical winners over 200 seeds, without a guarantee of the
+expected-error ordering. For horizon 8, stop probability 0.65, and batch size 4,
+the sampled normalized MSE favors TurnLOO (0.71545 versus 0.72366), but exhaustive
+batch expectation favors trajectory centering (0.75215 versus 0.78455).
+Treat close cells as uncertain; see the [full audit](docs/full_audit_2026-09-07.md)
+for the enumeration and reproduction.
+
 The original batch-500-only result hid a correctness bug: when no peer
 survived to a timestep, TurnLOO emitted zero and deleted that timestep's
 REINFORCE contribution. On the five-step environment at stop probability
@@ -309,8 +316,14 @@ python experiments/monte_carlo_convergence.py
 
 ## Validation boundaries
 
+The [full-audit fixes](docs/audit_fixes_2026-09-07.md) address rollout limits,
+numerical cancellation, and the small-batch recovery CLI. All 291 tests pass
+across compatible environments. All seven default experiments were rerun;
+normalized gradient-MSE values and their empirical ordering are unchanged.
+The report details the new CSV count columns and rank/rounding changes.
+
 The complete [2026-09-07 correctness rerun](docs/correctness_revalidation_2026-09-07.md)
-fixes seven further issues and reproduces the current study conclusions:
+records the preceding seven fixes and their study conclusions:
 six of eight CSVs are identical, and the other two change only at floating-point
 rounding scale (maximum absolute difference about 1e-15). The report records
 263 passing tests across compatible core/framework environments, dependency
@@ -320,9 +333,13 @@ versions, and artifact hashes. Earlier claim corrections remain documented in
 - Core tabular results use γ = 1 and exact backward induction under the
   supplied Markov policy. An external GAE adapter described as using an
   "exact critic" must use the same discount and reward layout.
-- Arithmetic uses Python floats. Advantages are computed from centered Q
-  differences to preserve small action gaps under large shared reward offsets;
-  they can differ from subtracting separately rounded Q and V outputs.
+- Inputs and public metrics use Python floats. Oracle and minimum-return
+  backward induction preserve residuals using exact rational arithmetic on
+  validated input values, then round public outputs separately. Unrepresentable
+  oracle outputs raise ValueError. Group baselines center before averaging;
+  Monte Carlo preserves sampled mean differences before rounding credit.
+  Public Q, V, and A may therefore differ from subtracting rounded outputs.
+  Other metrics and framework routines retain ordinary floating-point limits.
 - Optional integrations are version-sensitive. The extras pin verl 0.9.0,
   TRL 1.12.0, OpenRLHF 0.11.0, and verifiers 0.1.14. Tests skip rather than
   claim coverage when an extra is absent.

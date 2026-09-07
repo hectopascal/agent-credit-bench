@@ -26,10 +26,13 @@ def _check_aligned(estimated: Sequence[float], exact: Sequence[float]) -> None:
 def rmse(estimated: Sequence[float], exact: Sequence[float]) -> float:
     """Root mean squared error (plan.md §10.1)."""
     _check_aligned(estimated, exact)
-    return math.sqrt(
-        sum((e - a) ** 2 for e, a in zip(estimated, exact, strict=True))
-        / len(estimated)
-    )
+    errors = [e - a for e, a in zip(estimated, exact, strict=True)]
+    scale = max(abs(error) for error in errors)
+    if scale == 0.0:
+        return 0.0
+    if not math.isfinite(scale):
+        raise ValueError("RMSE differences exceed the finite float range")
+    return scale * math.sqrt(math.fsum((e / scale) ** 2 for e in errors) / len(errors))
 
 
 def _average_ranks(values: Sequence[float]) -> list[float]:

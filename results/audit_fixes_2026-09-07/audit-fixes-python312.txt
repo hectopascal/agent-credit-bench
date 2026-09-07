@@ -1,0 +1,40 @@
+...................s.................................................... [ 24%]
+........................................................................ [ 49%]
+........................................................................ [ 74%]
+.sssssssss....................ssssssssss....................ssssssssssss [ 98%]
+sss                                                                      [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_audit_regressions.py:88: could not import 'matplotlib': No module named 'matplotlib'
+SKIPPED [1] tests/test_openrlhf_integration.py:50: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:60: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:73: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:83: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:100: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:119: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:136: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:148: openrlhf is not installed
+SKIPPED [1] tests/test_openrlhf_integration.py:159: openrlhf is not installed
+SKIPPED [1] tests/test_trl_integration.py:49: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:65: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:80: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:90: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:107: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:117: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:126: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:131: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:137: trl is not installed
+SKIPPED [1] tests/test_trl_integration.py:156: trl is not installed
+SKIPPED [1] tests/test_verl_integration.py:55: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:71: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:76: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:86: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:102: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:117: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:127: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:146: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:161: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:166: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:183: verl is not installed
+SKIPPED [1] tests/test_verl_integration.py:214: verl is not installed
+SKIPPED [3] tests/test_verl_integration.py:226: verl is not installed
+256 passed, 35 skipped in 7.30s

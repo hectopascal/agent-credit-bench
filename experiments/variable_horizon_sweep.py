@@ -357,7 +357,7 @@ def _plot_crossover_frontier(
     color_axis = fig.add_axes((0.91, 0.2, 0.015, 0.58))
     colorbar = fig.colorbar(images[-1], cax=color_axis)
     colorbar.set_label("log10(TurnLOO MSE / trajectory-centered MSE)")
-    fig.suptitle("Gradient-error crossover (< 0 favors TurnLOO)")
+    fig.suptitle("Empirical gradient-error crossover (< 0 favors TurnLOO)")
     path = out_dir / "variable_horizon_frontier.png"
     fig.savefig(path, dpi=150)
     plt.close(fig)

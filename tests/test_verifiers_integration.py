@@ -36,7 +36,7 @@ def recipe():
 def scripted_client(replies):
     """A vf.Client that plays back canned replies, one per model call."""
     import verifiers as vf
-    from verifiers.types import Response, ResponseMessage
+    from verifiers.types import Response, ResponseMessage, Usage
 
     queue = list(replies)
 
@@ -55,12 +55,22 @@ def scripted_client(replies):
         ):
             if not queue:
                 raise AssertionError("scripted client ran out of replies")
+            reply = queue.pop(0)
+            truncated = isinstance(reply, tuple)
             return Response(
                 id="scripted",
                 created=0,
                 model=model,
+                usage=Usage(
+                    prompt_tokens=1,
+                    reasoning_tokens=0,
+                    completion_tokens=1,
+                    total_tokens=2,
+                ),
                 message=ResponseMessage(
-                    content=queue.pop(0), finish_reason="stop", is_truncated=False
+                    content=reply[0] if truncated else reply,
+                    finish_reason="length" if truncated else "stop",
+                    is_truncated=truncated,
                 ),
             )
 
@@ -178,3 +188,66 @@ def test_fixed_seed_warns(recipe) -> None:
         recipe.load_environment(
             env="recovery", num_train_examples=1, num_eval_examples=1, seed=0
         )
+
+
+@pytest.mark.parametrize(
+    "cap,replies,done",
+    [
+        (1, ["STOP"], True),
+        (2, ["CONTINUE", "STOP"], True),
+        (1, ["CONTINUE"], False),
+    ],
+)
+def test_rollout_cap_applies_final_reply_and_penalizes_incomplete(
+    recipe, tmp_path, cap, replies, done
+):
+    episodes = tmp_path / "episodes.jsonl"
+    env = recipe.load_environment(
+        env="variable_horizon",
+        env_params={"stop_rewards": [-1.0, -1.0], "continue_reward": 0.0},
+        num_train_examples=1,
+        num_eval_examples=1,
+        max_turns=cap,
+        episodes_path=str(episodes),
+    )
+    state = run_rollout(env, replies)
+    asyncio.run(env.rubric.score_rollout(state))
+    session = state["credit_bench_session"]
+    assert [turn.step.action for turn in session.turns] == replies
+    assert session.done == done
+    assert state["reward"] == -1.0
+    assert episodes.exists() == done
+    if done:
+        assert len(episodes.read_text().splitlines()) == 1
+
+
+def test_token_truncated_response_is_not_executed(recipe, tmp_path):
+    episodes = tmp_path / "episodes.jsonl"
+    env = recipe.load_environment(
+        env="variable_horizon",
+        env_params={"stop_rewards": [-1.0, -1.0], "continue_reward": 0.0},
+        num_train_examples=1,
+        num_eval_examples=1,
+        episodes_path=str(episodes),
+    )
+    state = run_rollout(env, [("STOP",)])
+    asyncio.run(env.rubric.score_rollout(state))
+    assert not state["credit_bench_session"].turns
+    assert state["reward"] == -1.0
+    assert not episodes.exists()
+
+
+@pytest.mark.parametrize("replies,done", [(["STOP"], True), (["CONTINUE"], False)])
+def test_completion_token_cap_applies_complete_reply(recipe, replies, done):
+    env = recipe.load_environment(
+        env="variable_horizon",
+        env_params={"stop_rewards": [-1.0, -1.0], "continue_reward": 0.0},
+        num_train_examples=1,
+        num_eval_examples=1,
+        max_total_completion_tokens=1,
+    )
+    state = run_rollout(env, replies)
+    asyncio.run(env.rubric.score_rollout(state))
+    assert state["credit_bench_session"].done == done
+    assert [t.step.action for t in state["credit_bench_session"].turns] == replies
+    assert state["reward"] == -1.0

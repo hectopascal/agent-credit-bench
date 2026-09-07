@@ -17,6 +17,7 @@ variable-horizon experiment (plan.md §11.3) interrogates.
 
 from dataclasses import dataclass
 
+from agent_credit_bench._numerics import centered_values
 from agent_credit_bench.estimators.base import EstimatorContext
 
 
@@ -29,23 +30,14 @@ class TurnLOO:
         lengths = [len(t.steps) for t in context.trajectories]
         max_length = max(lengths)
 
-        # Per-timestep sums over active trajectories, computed once.
-        active_sum = [0.0] * max_length
-        active_count = [0] * max_length
-        for ret, length in zip(returns, lengths, strict=True):
-            for t in range(length):
-                active_sum[t] += ret
-                active_count[t] += 1
-
-        credits = []
-        for ret, length in zip(returns, lengths, strict=True):
-            row = []
-            for t in range(length):
-                peers = active_count[t] - 1
-                if peers == 0:
-                    row.append(ret)
-                else:
-                    baseline = (active_sum[t] - ret) / peers
-                    row.append(ret - baseline)
-            credits.append(tuple(row))
-        return tuple(credits)
+        credits = [[0.0] * length for length in lengths]
+        for t in range(max_length):
+            active = [i for i, length in enumerate(lengths) if length > t]
+            count = len(active)
+            if count == 1:
+                credits[active[0]][t] = returns[active[0]]
+                continue
+            centered = centered_values([returns[i] for i in active])
+            for i, value in zip(active, centered, strict=True):
+                credits[i][t] = value * (count / (count - 1))
+        return tuple(tuple(row) for row in credits)

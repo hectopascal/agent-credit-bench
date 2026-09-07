@@ -212,8 +212,10 @@ class VerlGAE:
     which verl's masked recursion never reads.
 
     At ``lam=1`` GAE is return-to-go minus baseline, so even a perfect critic
-    can give selected successful repairs positive BAD credit. Only ``lam < 1``
-    bootstraps on the critic and separates the two selected turns.
+    can give selected successful repairs positive BAD credit. ``lam=0`` gives
+    one-step TD credit and separates their signs in the default diagnostic.
+    Intermediate lambda values need not give BAD negative credit: later TD
+    residuals propagate backward, and batch whitening shifts the sign threshold.
 
     verl whitens the advantages across the batch before returning them, so
     even the perfect-critic variant returns shifted/scaled credit values —

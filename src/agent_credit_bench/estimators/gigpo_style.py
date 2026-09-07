@@ -17,14 +17,15 @@ group with zero variance contributes zero step advantage.
 
 import statistics
 from dataclasses import dataclass
+from fractions import Fraction
 
+from agent_credit_bench._numerics import centered_values, finite_float
 from agent_credit_bench.estimators.base import EstimatorContext
 
 
 def _z_scores(values: list[float], epsilon: float) -> list[float]:
-    mean = statistics.fmean(values)
     std = statistics.pstdev(values)
-    return [(v - mean) / (std + epsilon) for v in values]
+    return [v / (std + epsilon) for v in centered_values(values)]
 
 
 @dataclass(frozen=True)
@@ -46,11 +47,11 @@ class GiGPOStyle:
         returns_to_go: list[list[float]] = []
         groups: dict[object, list[tuple[int, int]]] = {}
         for i, trajectory in enumerate(trajectories):
-            suffix = 0.0
+            suffix = Fraction(0)
             rtg = [0.0] * len(trajectory.steps)
             for t in range(len(trajectory.steps) - 1, -1, -1):
-                suffix += trajectory.steps[t].reward
-                rtg[t] = suffix
+                suffix += Fraction(trajectory.steps[t].reward)
+                rtg[t] = finite_float(suffix)
             returns_to_go.append(rtg)
             for t, step in enumerate(trajectory.steps):
                 groups.setdefault(step.state, []).append((i, t))
